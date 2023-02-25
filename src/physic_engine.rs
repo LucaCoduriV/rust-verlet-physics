@@ -54,7 +54,7 @@ impl Solver {
 
     fn apply_gravity(objects: &mut Vec<VerletObject>) {
         for object in objects.iter_mut(){
-            object.accelerate(Vec2::new(0., 100.));
+            object.accelerate(Vec2::new(0., 1000.));
         }
     }
 }
