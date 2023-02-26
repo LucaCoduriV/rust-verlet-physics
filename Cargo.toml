@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 raqote = "0.8.2"
-font-kit = "0.5.0"
-minifb = "0.15.3"
+font-kit = "0.11.0"
+minifb = "0.24.0"
 cgmath = "0.18.0"
+rand = "0.8.5"
