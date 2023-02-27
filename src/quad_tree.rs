@@ -1,5 +1,7 @@
 use std::cell::RefCell;
 
+use sdl2::{rect::Rect, render::WindowCanvas};
+
 type Point = (f32, f32);
 
 #[derive(Debug, Clone)]
@@ -106,6 +108,34 @@ impl QuadTree {
         false
     }
 
+    pub fn draw(&self, canvas: &mut WindowCanvas) -> Result<(), String> {
+        let rect = Rect::new(
+            self.boundary.x as i32,
+            self.boundary.y as i32,
+            self.boundary.width as u32,
+            self.boundary.height as u32,
+        );
+        canvas.draw_rect(rect)?;
+
+        if let Some(qt) = self.north_west.as_ref() {
+            qt.borrow().draw(canvas)?;
+        }
+
+        if let Some(qt) = self.north_east.as_ref() {
+            qt.borrow().draw(canvas)?;
+        }
+
+        if let Some(qt) = self.south_west.as_ref() {
+            qt.borrow().draw(canvas)?;
+        }
+
+        if let Some(qt) = self.south_east.as_ref() {
+            qt.borrow().draw(canvas)?;
+        }
+
+        Ok(())
+    }
+
     fn divide(&mut self) {
         let ne = Aabb {
             x: self.boundary.x + self.boundary.width / 2.,
@@ -145,6 +175,10 @@ impl QuadTree {
 
 #[cfg(test)]
 mod test {
+    use std::time::Duration;
+
+    use sdl2::{event::Event, keyboard::Keycode, pixels::Color};
+
     use super::*;
 
     #[test]
@@ -165,8 +199,6 @@ mod test {
         qt.insert(pt2);
         qt.insert(pt3);
 
-        println!("{:#?}", qt);
-
         let boundary = Aabb {
             x: 90.,
             y: 30.,
@@ -175,5 +207,65 @@ mod test {
         };
 
         println!("{:#?}", qt.query(boundary.clone()))
+    }
+
+    const WIDTH: u32 = 500;
+    const HEIGHT: u32 = 500;
+
+    #[test]
+    fn quad_tree_draw() -> Result<(), String> {
+        let boundary = Aabb {
+            x: 0.,
+            y: 0.,
+            width: 500.,
+            height: 500.,
+        };
+        let mut qt = QuadTree::new(boundary.clone(), 2);
+
+        let pt1 = (50., 80.);
+        let pt2 = (270., 80.);
+        let pt3 = (100., 40.);
+
+        qt.insert(pt1);
+        qt.insert(pt2);
+        qt.insert(pt3);
+
+        let sdl_context = sdl2::init()?;
+        let video_subsystem = sdl_context.video()?;
+
+        let window = video_subsystem
+            .window("rust verlet", WIDTH, HEIGHT)
+            .position_centered()
+            .opengl()
+            .build()
+            .map_err(|e| e.to_string())?;
+
+        let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
+        canvas.set_draw_color(Color::RGB(255, 255, 255));
+        canvas.clear();
+        canvas.present();
+        let mut event_pump = sdl_context.event_pump()?;
+
+        'running: loop {
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::Quit { .. }
+                    | Event::KeyDown {
+                        keycode: Some(Keycode::Escape),
+                        ..
+                    } => break 'running,
+                    _ => {}
+                }
+            }
+
+            canvas.set_draw_color(Color::RGB(255, 255, 255));
+            canvas.clear();
+            canvas.present();
+            canvas.set_draw_color(Color::RGB(255, 0, 0));
+            qt.draw(&mut canvas)?;
+            std::thread::sleep(Duration::new(1, 0));
+        }
+
+        Ok(())
     }
 }
