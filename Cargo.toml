@@ -1,5 +1,5 @@
 [package]
-name = "bevy-physics"
+name = "rust-physics"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,3 +11,5 @@ font-kit = "0.11.0"
 minifb = "0.24.0"
 cgmath = "0.18.0"
 rand = "0.8.5"
+sdl2 = "0.35.2"
+image = "0.24.5"
