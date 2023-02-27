@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 
 use sdl2::{rect::Rect, render::WindowCanvas};
+use sdl2::pixels::Color;
 
 type Point = (f32, f32);
 
@@ -18,6 +19,13 @@ impl Aabb {
             && point.0 <= self.x + self.width
             && point.1 >= self.y
             && point.1 <= self.y + self.height;
+    }
+
+    pub fn intersects(&self, other: Aabb) -> bool {
+        !(self.x > other.x + other.width
+            || other.x > self.x + self.width
+            || self.y + self.height < other.y
+            || other.y + other.height < self.y)
     }
 }
 
@@ -115,22 +123,32 @@ impl QuadTree {
             self.boundary.width as u32,
             self.boundary.height as u32,
         );
+        canvas.set_draw_color(Color::RGB(255, 0, 0));
         canvas.draw_rect(rect)?;
+
+        canvas.set_draw_color(Color::RGB(0, 0, 255));
+        for p in self.points.iter() {
+            canvas.draw_point(sdl2::rect::Point::new(p.0 as i32, p.1 as i32))?;
+        }
 
         if let Some(qt) = self.north_west.as_ref() {
             qt.borrow().draw(canvas)?;
+            println!("coucou");
         }
 
         if let Some(qt) = self.north_east.as_ref() {
             qt.borrow().draw(canvas)?;
+            println!("coucou");
         }
 
         if let Some(qt) = self.south_west.as_ref() {
             qt.borrow().draw(canvas)?;
+            println!("coucou");
         }
 
         if let Some(qt) = self.south_east.as_ref() {
             qt.borrow().draw(canvas)?;
+            println!("coucou");
         }
 
         Ok(())
@@ -176,6 +194,7 @@ impl QuadTree {
 #[cfg(test)]
 mod test {
     use std::time::Duration;
+    use rand::Rng;
 
     use sdl2::{event::Event, keyboard::Keycode, pixels::Color};
 
@@ -222,13 +241,11 @@ mod test {
         };
         let mut qt = QuadTree::new(boundary.clone(), 2);
 
-        let pt1 = (50., 80.);
-        let pt2 = (270., 80.);
-        let pt3 = (100., 40.);
+        let mut rng = rand::thread_rng();
 
-        qt.insert(pt1);
-        qt.insert(pt2);
-        qt.insert(pt3);
+        for _ in 0..500 {
+            qt.insert((rng.gen_range(0..WIDTH) as f32, rng.gen_range(0..HEIGHT) as f32));
+        }
 
         let sdl_context = sdl2::init()?;
         let video_subsystem = sdl_context.video()?;
@@ -261,9 +278,10 @@ mod test {
             canvas.set_draw_color(Color::RGB(255, 255, 255));
             canvas.clear();
             canvas.present();
-            canvas.set_draw_color(Color::RGB(255, 0, 0));
+
             qt.draw(&mut canvas)?;
-            std::thread::sleep(Duration::new(1, 0));
+            canvas.present();
+            std::thread::sleep(Duration::from_millis(500));
         }
 
         Ok(())
