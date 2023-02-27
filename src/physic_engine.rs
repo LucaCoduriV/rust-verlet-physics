@@ -1,4 +1,6 @@
+use std::time::Duration;
 use cgmath::{MetricSpace, Vector2};
+use crate::quad_tree::{Aabb, QuadTree};
 
 pub type Vec2 = Vector2<f32>;
 
@@ -11,7 +13,7 @@ pub struct VerletObject {
 }
 
 impl VerletObject {
-    pub fn new(position_current: Vec2, radius:f32, color: (u8,u8,u8)) -> Self {
+    pub fn new(position_current: Vec2, radius: f32, color: (u8, u8, u8)) -> Self {
         Self {
             position_current,
             position_old: position_current,
@@ -33,7 +35,7 @@ impl VerletObject {
         self.acceleration = self.acceleration + acc;
     }
 
-    pub fn set_velocity(&mut self, v:Vec2, dt:f32){
+    pub fn set_velocity(&mut self, v: Vec2, dt: f32) {
         self.position_old = self.position_current - (v * dt);
     }
 }
@@ -53,12 +55,12 @@ impl Solver {
         }
     }
 
-    pub fn update(&self, objects: &mut Vec<VerletObject>) {
+    pub fn update(&self, objects: &mut Vec<VerletObject>, quadtree: &mut QuadTree) {
         let sub_dt = self.frame_dt / self.sub_steps as f32;
         for _ in 0..self.sub_steps {
             Self::apply_gravity(objects);
             Self::apply_constraint(objects);
-            Self::solve_collision(objects);
+            Self::solve_collision(objects, quadtree);
             Self::update_position(objects, sub_dt);
         }
     }
@@ -89,25 +91,49 @@ impl Solver {
         }
     }
 
-    fn solve_collision(objects: &mut Vec<VerletObject>) {
+    fn solve_collision(objects: &mut Vec<VerletObject>, quadtree: &mut QuadTree) {
+        // for ia in 0..objects.len() {
+        //     let (left, right) = objects.split_at_mut(ia);
+        //     let (object_a, right) = right.split_first_mut().unwrap();
+        //     for object_b in left.iter_mut().chain(right.iter_mut()) {
+        //         let collision_axis = object_a.position_current - object_b.position_current;
+        //         let dist = collision_axis.distance(Vec2::new(0., 0.));
+        //         if dist < object_a.radius + object_b.radius {
+        //             let n = collision_axis / dist;
+        //             let delta = object_a.radius + object_b.radius - dist;
+        //             object_a.position_current += 0.5 * delta * n;
+        //             object_b.position_current -= 0.5 * delta * n;
+        //         }
+        //     }
+        // }
 
-        for ia in 0..objects.len() {
-            let (left, right) = objects.split_at_mut(ia);
-            let (object_a, right) = right.split_first_mut().unwrap();
-            for object_b in left.iter_mut().chain(right.iter_mut()) {
-                let collision_axis = object_a.position_current - object_b.position_current;
-                let dist = collision_axis.distance(Vec2::new(0., 0.));
-                if dist < object_a.radius + object_b.radius {
-                    let n = collision_axis / dist;
-                    let delta = object_a.radius + object_b.radius - dist;
-                    object_a.position_current += 0.5 * delta * n;
-                    object_b.position_current -= 0.5 * delta * n;
-                }
+        for (id, object) in objects.iter().enumerate() {
+            let x = object.position_current.x - object.radius;
+            let y = object.position_current.y - object.radius;
+            quadtree.insert(Aabb::new(id, x, y, object.radius * 2., object.radius * 2.))
+        }
+
+        let intersections = quadtree.find_all_intersection();
+        for intersection in intersections {
+            let a = intersection.0;
+            let b = intersection.1;
+            if a.id == b.id {
+                return;
+            }
+
+            let collision_axis = Vec2::new(a.center().0, a.center().1)
+                - Vec2::new(b.center().0, b.center().1);
+            let dist = collision_axis.distance(Vec2::new(0., 0.));
+            if dist < a.width / 2. + b.width / 2. {
+                let n = collision_axis / dist;
+                let delta = a.width / 2. + b.width / 2. - dist;
+                objects[a.id].position_current += 0.5 * delta * n;
+                objects[b.id].position_current -= 0.5 * delta * n;
             }
         }
     }
 
-    pub fn set_object_velocity(&self, object: &mut VerletObject, velocity: Vec2){
+    pub fn set_object_velocity(&self, object: &mut VerletObject, velocity: Vec2) {
         object.set_velocity(velocity, self.frame_dt);
     }
 }

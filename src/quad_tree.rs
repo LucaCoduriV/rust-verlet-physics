@@ -7,13 +7,23 @@ type Point = (f32, f32);
 
 #[derive(Debug, Clone)]
 pub struct Aabb {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
+    pub id:usize,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
 }
 
 impl Aabb {
+    pub fn new(id:usize, x:f32, y:f32, width:f32, height:f32) -> Self{
+        Self{
+            id,
+            x,
+            y,
+            width,
+            height,
+        }
+    }
     pub fn contains_point(&self, point: Point) -> bool {
         return point.0 >= self.left()
             && point.0 <= self.right()
@@ -26,14 +36,12 @@ impl Aabb {
     }
 
     pub fn intersects(&self, other: &Aabb) -> bool {
-        !(self.x > other.x + other.width
-            || other.x > self.x + self.width
-            || self.y + self.height < other.y
-            || other.y + other.height < self.y)
+        !(other.left() > self.right() || other.right() < self.left()
+        || other.top() > self.bottom() || other.bottom() < self.top())
     }
 
     pub fn center(&self) -> Point {
-        ((self.x + self.width) / 2., (self.y + self.height) / 2.)
+        (self.x + self.width / 2. , self.y + self.height / 2.)
     }
 
     pub fn left(&self) -> f32 {
@@ -198,6 +206,7 @@ impl QuadTreeNode {
 
     fn divide(&mut self) {
         let ne = Aabb {
+            id:0,
             x: self.boundary.x + self.boundary.width / 2.,
             y: self.boundary.y,
             height: self.boundary.height / 2.,
@@ -206,6 +215,7 @@ impl QuadTreeNode {
         self.north_east = Some(Box::new(RefCell::new(QuadTreeNode::new(ne, self.capacity))));
 
         let nw = Aabb {
+            id:0,
             x: self.boundary.x,
             y: self.boundary.y,
             height: self.boundary.height / 2.,
@@ -214,6 +224,7 @@ impl QuadTreeNode {
         self.north_west = Some(Box::new(RefCell::new(QuadTreeNode::new(nw, self.capacity))));
 
         let se = Aabb {
+            id:0,
             x: self.boundary.x + self.boundary.width / 2.,
             y: self.boundary.y + self.boundary.height / 2.,
             height: self.boundary.height / 2.,
@@ -222,6 +233,7 @@ impl QuadTreeNode {
         self.south_east = Some(Box::new(RefCell::new(QuadTreeNode::new(se, self.capacity))));
 
         let sw = Aabb {
+            id:0,
             x: self.boundary.x,
             y: self.boundary.y + self.boundary.height / 2.,
             height: self.boundary.height / 2.,
@@ -241,32 +253,36 @@ impl QuadTreeNode {
         canvas.set_draw_color(Color::RGB(255, 0, 0));
         canvas.draw_rect(rect)?;
 
-        canvas.set_draw_color(Color::RGB(0, 0, 255));
+        canvas.set_draw_color(Color::RGB(0, 255, 0));
         for p in self.values.iter() {
             let center = p.center();
             canvas.draw_point(
                 sdl2::rect::Point::new(center.0 as i32,center.1 as i32)
             )?;
+
+            let rect = Rect::new(
+                p.x as i32,
+                p.y as i32,
+                p.width as u32,
+                p.height as u32,
+            );
+            canvas.draw_rect(rect)?;
         }
 
         if let Some(qt) = self.north_west.as_ref() {
             qt.borrow().draw(canvas)?;
-            println!("coucou");
         }
 
         if let Some(qt) = self.north_east.as_ref() {
             qt.borrow().draw(canvas)?;
-            println!("coucou");
         }
 
         if let Some(qt) = self.south_west.as_ref() {
             qt.borrow().draw(canvas)?;
-            println!("coucou");
         }
 
         if let Some(qt) = self.south_east.as_ref() {
             qt.borrow().draw(canvas)?;
-            println!("coucou");
         }
 
         Ok(())
@@ -323,6 +339,7 @@ mod test {
     #[test]
     fn quad_tree_test() {
         let boundary = Aabb {
+            id:0,
             x: 0.,
             y: 0.,
             width: 500.,
@@ -331,6 +348,7 @@ mod test {
         let mut qt = QuadTree::new(boundary.clone(), 2);
 
         let bb1 = Aabb {
+            id:0,
             x:0.,
             y:0.,
             width:500.,
@@ -338,6 +356,7 @@ mod test {
         };
 
         let bb2 = Aabb {
+            id:0,
             x:0.,
             y:0.,
             width:100.,
@@ -345,6 +364,7 @@ mod test {
         };
 
         let bb3 = Aabb {
+            id:0,
             x:260.,
             y:260.,
             width:100.,
@@ -352,6 +372,7 @@ mod test {
         };
 
         let bb4 = Aabb {
+            id:0,
             x:240.,
             y:240.,
             width:100.,
@@ -373,6 +394,7 @@ mod test {
     #[test]
     fn quad_tree_draw() -> Result<(), String> {
         let boundary = Aabb {
+            id:0,
             x: 0.,
             y: 0.,
             width: 500.,
@@ -382,9 +404,17 @@ mod test {
 
         let mut rng = rand::thread_rng();
 
-        // for _ in 0..500 {
-        //     qt.insert((rng.gen_range(0..WIDTH) as f32, rng.gen_range(0..HEIGHT) as f32));
-        // }
+        for _ in 0..10 {
+
+            let bb1 = Aabb {
+                id:0,
+                x:rng.gen_range(0..WIDTH) as f32,
+                y:rng.gen_range(0..HEIGHT) as f32,
+                width:20.,
+                height:20.,
+            };
+            qt.insert(bb1);
+        }
 
         let sdl_context = sdl2::init()?;
         let video_subsystem = sdl_context.video()?;
@@ -401,8 +431,17 @@ mod test {
         canvas.clear();
         canvas.present();
         let mut event_pump = sdl_context.event_pump()?;
-
+        let mut mouse_x = 0.;
+        let mut mouse_y = 0.;
         'running: loop {
+            let mut bb1 = Aabb {
+                id:0,
+                x:mouse_x,
+                y:mouse_y,
+                width:20.,
+                height:20.,
+            };
+
             for event in event_pump.poll_iter() {
                 match event {
                     Event::Quit { .. }
@@ -410,17 +449,40 @@ mod test {
                         keycode: Some(Keycode::Escape),
                         ..
                     } => break 'running,
+                    Event::MouseMotion {x, y, ..} => {
+                        mouse_x = (x as f32).clamp(0.,480.);
+                        mouse_y = (y as f32).clamp(0.,480.);
+                    }
                     _ => {}
                 }
             }
-
             canvas.set_draw_color(Color::RGB(255, 255, 255));
             canvas.clear();
             canvas.present();
-
+            let result = qt.query(bb1.clone());
+            println!("{:?}", result);
+            let rect = Rect::new(
+                bb1.x as i32,
+                bb1.y as i32,
+                bb1.width as u32,
+                bb1.height as u32,
+            );
+            canvas.set_draw_color(Color::RGB(255, 120, 50));
             qt.draw(&mut canvas)?;
+            canvas.draw_rect(rect)?;
+            for b in result {
+                let rect = Rect::new(
+                    b.x as i32,
+                    b.y as i32,
+                    b.width as u32,
+                    b.height as u32,
+                );
+                canvas.set_draw_color(Color::RGB(255, 120, 50));
+                canvas.draw_rect(rect)?;
+            }
+
             canvas.present();
-            std::thread::sleep(Duration::from_millis(500));
+            std::thread::sleep(Duration::from_millis(16));
         }
 
         Ok(())
