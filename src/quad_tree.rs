@@ -94,9 +94,7 @@ impl QuadTreeNode {
     }
 
     fn insert(&mut self, value: Aabb) {
-        if !self.boundary.contains_aabb(&value) {
-            return;
-        }
+        assert!(self.boundary.contains_aabb(&value), "{:?}", value);
 
         if self.is_leaf() {
             if self.values.len() < self.threshold {

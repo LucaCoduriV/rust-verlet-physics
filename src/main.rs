@@ -1,25 +1,26 @@
-use rand::rngs::StdRng;
+use std::f32::consts::PI;
+use std::time::{Duration, Instant};
+
+use image::GenericImageView;
 use rand::{Rng, SeedableRng};
+use rand::rngs::StdRng;
 use sdl2::event::Event;
+use sdl2::EventPump;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::render::WindowCanvas;
-use std::f32::consts::PI;
-use std::time::{Duration, Instant};
-use image::GenericImageView;
-use sdl2::EventPump;
-
-use crate::physic_engine::{Solver, Vec2, VerletObject};
-use crate::quad_tree::{QuadTree};
+use physic_engine::{Solver, Vec2, VerletObject};
+use crate::drawing_functions::DrawBasicShapes;
 
 mod physic_engine;
 mod quad_tree;
+mod drawing_functions;
 
 const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
 const MAX_ANGLE: f32 = 2.;
 const OBJECT_SPAWN_SPEED: f32 = 100.;
-const MAX_OBJECT: usize = 1800;
+const MAX_OBJECT: usize = 2;
 
 pub fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
@@ -40,29 +41,29 @@ pub fn main() -> Result<(), String> {
 
     // create random colors
     let mut rng = StdRng::seed_from_u64(42);
-    let mut colors: [(u8, u8, u8);MAX_OBJECT] = [(0,0,0);MAX_OBJECT];
-    for i in 0..colors.len(){
+    let mut colors: [(u8, u8, u8); MAX_OBJECT] = [(0, 0, 0); MAX_OBJECT];
+    for i in 0..colors.len() {
         colors[i] = (rng.gen(), rng.gen(), rng.gen());
     }
 
     // run first simulation to get all objects end position
     let objects = run_simulation(&mut canvas, &mut event_pump, &colors)?;
 
-    // set objects color from image
-    let img = image::open("./planete.webp").unwrap();
-    let mut colors = vec![];
-    for object in objects.iter() {
-        let pixel = img.get_pixel(
-            object.position_current.x as u32,
-            object.position_current.y as u32,
-        );
-        colors.push((pixel.0[0], pixel.0[1], pixel.0[2]));
-    }
-
-    // run second simulation with image colors
-    let objects = run_simulation(&mut canvas, &mut event_pump, colors.as_slice())?;
-
-    std::thread::sleep(Duration::new(10, 0));
+    // // set objects color from image
+    // let img = image::open("./planete.webp").unwrap();
+    // let mut colors = vec![];
+    // for object in objects.iter() {
+    //     let pixel = img.get_pixel(
+    //         object.position_current.x as u32,
+    //         object.position_current.y as u32,
+    //     );
+    //     colors.push((pixel.0[0], pixel.0[1], pixel.0[2]));
+    // }
+    //
+    // // run second simulation with image colors
+    // let objects = run_simulation(&mut canvas, &mut event_pump, colors.as_slice())?;
+    //
+    // std::thread::sleep(Duration::new(10, 0));
     Ok(())
 }
 
@@ -81,9 +82,9 @@ fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors:
         let delta_time = current_time.duration_since(last_time);
         last_time = current_time;
 
-        if objects.len() >= MAX_OBJECT {
-            break 'running;
-        }
+        // if objects.len() >= MAX_OBJECT {
+        //     break 'running;
+        // }
 
         for event in event_pump.poll_iter() {
             match event {
@@ -103,7 +104,7 @@ fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors:
             delta_time,
         ));
 
-        if nb_update > 1 {
+        if nb_update > 1 && objects.len() < MAX_OBJECT {
             let angle: f32 = MAX_ANGLE * angle_counter.sin() + PI * 0.5;
             angle_counter += 0.1;
             let color = colors[objects.len()];
@@ -127,7 +128,7 @@ fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors:
         canvas
             .fill_circle((WIDTH / 2) as i32, (HEIGHT / 2) as i32, 500)
             .unwrap();
-        solver.draw(canvas)?;
+        //solver.draw(canvas)?;
         for (_, object) in (&objects).iter().enumerate() {
             canvas.set_draw_color(Color::RGB(object.color.0, object.color.1, object.color.2));
             canvas.fill_circle(
@@ -141,37 +142,4 @@ fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors:
     }
 
     Ok(objects)
-}
-
-trait DrawBasicShapes {
-    fn fill_circle(&mut self, x: i32, y: i32, radius: i32) -> Result<(), String>;
-}
-
-impl DrawBasicShapes for WindowCanvas {
-    fn fill_circle(&mut self, x: i32, y: i32, radius: i32) -> Result<(), String> {
-        let mut offset_x: i32 = 0;
-        let mut offset_y: i32 = radius;
-        let mut d: i32 = radius - 1;
-
-        while offset_y >= offset_x {
-            self.draw_line((x - offset_y, y + offset_x), (x + offset_y, y + offset_x))?;
-            self.draw_line((x - offset_x, y + offset_y), (x + offset_x, y + offset_y))?;
-            self.draw_line((x - offset_x, y - offset_y), (x + offset_x, y - offset_y))?;
-            self.draw_line((x - offset_y, y - offset_x), (x + offset_y, y - offset_x))?;
-
-            if d >= 2 * offset_x {
-                d -= 2 * offset_x + 1;
-                offset_x += 1;
-            } else if d < 2 * (radius - offset_y) {
-                d += 2 * offset_y - 1;
-                offset_y -= 1;
-            } else {
-                d += 2 * (offset_y - offset_x - 1);
-                offset_y -= 1;
-                offset_x += 1;
-            }
-        }
-
-        return Ok(());
-    }
 }
