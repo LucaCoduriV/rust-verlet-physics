@@ -109,7 +109,8 @@ impl Solver {
         }
     }
     fn solve_collision_quadtree(&mut self, objects: &mut Vec<VerletObject>) {
-        let response_coef:f32 = 0.75;
+        const RESPONSE_COEF:f32 = 0.75;
+
         self.quad_tree.clear();
         for (id, object) in objects.iter().enumerate() {
             let x = object.position_current.x - object.radius;
@@ -124,12 +125,18 @@ impl Solver {
 
             let collision_axis = Vec2::new(a.center().0, a.center().1)
                 - Vec2::new(b.center().0, b.center().1);
-            let dist2 = collision_axis.distance2(Vec2::new(0., 0.));
-            if dist2 < (a.width / 2. + b.width / 2.) * (a.width / 2. + b.width / 2.) {
-                let n = collision_axis / dist2;
-                let delta = a.width / 2. + b.width / 2. - dist2;
-                objects[a.id].position_current += 0.5 * delta * n;
-                objects[b.id].position_current -= 0.5 * delta * n;
+            let dist = collision_axis.distance(Vec2::new(0., 0.));
+            let min_dist:f32 = a.width / 2. + b.width / 2.;
+
+            if dist < min_dist {
+                let n = collision_axis / dist;
+
+                let mass_ratio_1:f32 = (a.width / 2.) / min_dist;
+                let mass_ratio_2:f32 = (b.width / 2.) / min_dist;
+
+                let delta = 0.5 * RESPONSE_COEF * (dist - min_dist);
+                objects[a.id].position_current -= n * (mass_ratio_2 * delta);
+                objects[b.id].position_current += n * (mass_ratio_1 * delta);
             }
         }
     }
