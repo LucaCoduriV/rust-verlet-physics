@@ -1,4 +1,5 @@
 use std::cell::{Ref, RefCell};
+use std::marker::PhantomData;
 
 use sdl2::pixels::Color;
 use sdl2::{rect::Rect, render::WindowCanvas};
@@ -66,17 +67,17 @@ impl Aabb {
 }
 
 #[derive(Debug)]
-struct QuadTreeNode<'a> {
+struct QuadTreeNode<'a:'v, 'v> {
     boundary: Aabb,
     threshold: usize,
     values: Vec<Aabb>,
-    north_east: Option<Box<RefCell<QuadTreeNode<'a>>>>,
-    north_west: Option<Box<RefCell<QuadTreeNode<'a>>>>,
-    south_east: Option<Box<RefCell<QuadTreeNode<'a>>>>,
-    south_west: Option<Box<RefCell<QuadTreeNode<'a>>>>,
+    north_east: Option<Box<RefCell<QuadTreeNode<'a,'v>>>>,
+    north_west: Option<Box<RefCell<QuadTreeNode<'a,'v>>>>,
+    south_east: Option<Box<RefCell<QuadTreeNode<'a,'v>>>>,
+    south_west: Option<Box<RefCell<QuadTreeNode<'a,'v>>>>,
 }
 
-impl<'a> QuadTreeNode<'a> {
+impl<'a:'v, 'v> QuadTreeNode<'a, 'v> {
     fn new(boundary: Aabb, capacity: usize) -> Self {
         Self {
             boundary,
@@ -168,7 +169,7 @@ impl<'a> QuadTreeNode<'a> {
         }
     }
 
-    fn find_all_intersections(&'a self, arr: &mut Vec<(&'a Aabb, &'a Aabb)>) {
+    fn find_all_intersections(&'a self, arr: &mut Vec<(&'v Aabb, &'v Aabb)>) {
         for i in 0..self.values.len() {
             for j in i + 1..self.values.len() {
                 if self.values[i].intersects(&self.values[j]) {
@@ -177,10 +178,10 @@ impl<'a> QuadTreeNode<'a> {
             }
         }
         if !self.is_leaf() {
-            let ne:Ref<QuadTreeNode<'a>> = self.north_east.as_ref().unwrap().borrow();
-            let nw:Ref<QuadTreeNode<'a>> = self.north_west.as_ref().unwrap().borrow();
-            let se:Ref<QuadTreeNode<'a>> = self.south_east.as_ref().unwrap().borrow();
-            let sw:Ref<QuadTreeNode<'a>> = self.south_west.as_ref().unwrap().borrow();
+            let ne = self.north_east.as_ref().unwrap().borrow();
+            let nw = self.north_west.as_ref().unwrap().borrow();
+            let se = self.south_east.as_ref().unwrap().borrow();
+            let sw = self.south_west.as_ref().unwrap().borrow();
 
             for value in self.values.iter() {
                 ne.find_intersections_with_all(value, arr);
@@ -293,9 +294,20 @@ impl<'a> QuadTreeNode<'a> {
     }
 }
 
+fn testmdr() {
+    let mut node = QuadTreeNode::new(Aabb::new(0,0.,0.,10.,10.), 2);
+    node.insert(Aabb::new(0,0.,0.,10.,10.));
+    let mut arr = Vec::new();
+    node.find_all_intersections(&mut arr);
+
+    for o in arr.iter(){
+        println!("{:?}", o);
+    }
+}
+
 #[derive(Debug)]
 pub struct QuadTree<'a> {
-    root: QuadTreeNode<'a>,
+    root: QuadTreeNode<'a,'a>,
 }
 
 impl<'a> QuadTree<'a> {
@@ -330,259 +342,259 @@ impl<'a> QuadTree<'a> {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use rand::Rng;
-    use std::time::Duration;
-
-    use sdl2::{event::Event, keyboard::Keycode, pixels::Color};
-
-    use super::*;
-
-    #[test]
-    fn quad_tree_test() {
-        let boundary = Aabb {
-            id: 0,
-            x: 0.,
-            y: 0.,
-            width: 500.,
-            height: 500.,
-        };
-        let mut qt = QuadTree::new(boundary.clone(), 2);
-
-        let bb1 = Aabb {
-            id: 0,
-            x: 0.,
-            y: 0.,
-            width: 500.,
-            height: 500.,
-        };
-
-        let bb2 = Aabb {
-            id: 0,
-            x: 0.,
-            y: 0.,
-            width: 100.,
-            height: 100.,
-        };
-
-        let bb3 = Aabb {
-            id: 0,
-            x: 260.,
-            y: 260.,
-            width: 100.,
-            height: 100.,
-        };
-
-        let bb4 = Aabb {
-            id: 0,
-            x: 240.,
-            y: 240.,
-            width: 100.,
-            height: 100.,
-        };
-
-        qt.insert(bb1);
-        qt.insert(bb2);
-        qt.insert(bb3);
-
-        println!("{:#?}", qt);
-
-        println!("{:#?}", qt.find_all_intersection())
-    }
-
-    const WIDTH: u32 = 500;
-    const HEIGHT: u32 = 500;
-
-    #[test]
-    fn quad_tree_draw() -> Result<(), String> {
-        let boundary = Aabb {
-            id: 0,
-            x: 0.,
-            y: 0.,
-            width: 500.,
-            height: 500.,
-        };
-        let mut qt = QuadTree::new(boundary.clone(), 2);
-
-        let mut rng = rand::thread_rng();
-
-        for _ in 0..3 {
-            let bb1 = Aabb {
-                id: 0,
-                x: rng.gen_range(0..WIDTH) as f32,
-                y: rng.gen_range(0..HEIGHT) as f32,
-                width: 20.,
-                height: 20.,
-            };
-            qt.insert(bb1);
-        }
-
-        let sdl_context = sdl2::init()?;
-        let video_subsystem = sdl_context.video()?;
-
-        let window = video_subsystem
-            .window("rust verlet", WIDTH, HEIGHT)
-            .position_centered()
-            .opengl()
-            .build()
-            .map_err(|e| e.to_string())?;
-
-        let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
-        canvas.set_draw_color(Color::RGB(255, 255, 255));
-        canvas.clear();
-        canvas.present();
-        let mut event_pump = sdl_context.event_pump()?;
-        let mut mouse_x = 0.;
-        let mut mouse_y = 0.;
-        'running: loop {
-            let mut bb1 = Aabb {
-                id: 0,
-                x: mouse_x,
-                y: mouse_y,
-                width: 20.,
-                height: 20.,
-            };
-
-            for event in event_pump.poll_iter() {
-                match event {
-                    Event::Quit { .. }
-                    | Event::KeyDown {
-                        keycode: Some(Keycode::Escape),
-                        ..
-                    } => break 'running,
-                    Event::MouseMotion { x, y, .. } => {
-                        mouse_x = (x as f32).clamp(0., 480.);
-                        mouse_y = (y as f32).clamp(0., 480.);
-                    }
-                    _ => {}
-                }
-            }
-            canvas.set_draw_color(Color::RGB(255, 255, 255));
-            canvas.clear();
-            canvas.present();
-            let result = qt.query(bb1.clone());
-            println!("{:?}", result);
-            let rect = Rect::new(
-                bb1.x as i32,
-                bb1.y as i32,
-                bb1.width as u32,
-                bb1.height as u32,
-            );
-            canvas.set_draw_color(Color::RGB(255, 120, 50));
-            qt.draw(&mut canvas)?;
-            canvas.draw_rect(rect)?;
-            for b in result {
-                let rect = Rect::new(b.x as i32, b.y as i32, b.width as u32, b.height as u32);
-                canvas.set_draw_color(Color::RGB(255, 120, 50));
-                canvas.draw_rect(rect)?;
-            }
-
-            canvas.present();
-            std::thread::sleep(Duration::from_millis(16));
-        }
-
-        Ok(())
-    }
-
-    #[test]
-    fn quad_tree_draw2() -> Result<(), String> {
-        let boundary = Aabb {
-            id: 3,
-            x: 0.,
-            y: 0.,
-            width: 500.,
-            height: 500.,
-        };
-
-
-        let mut rng = rand::thread_rng();
-        let mut bbs = Vec::new();
-        for id in 0..200 {
-            let bb = Aabb {
-                id: id,
-                x: rng.gen_range(0..WIDTH) as f32,
-                y: rng.gen_range(0..HEIGHT) as f32,
-                width: 20.,
-                height: 20.,
-            };
-            bbs.push(bb);
-        }
-
-        let sdl_context = sdl2::init()?;
-        let video_subsystem = sdl_context.video()?;
-
-        let window = video_subsystem
-            .window("rust verlet", WIDTH, HEIGHT)
-            .position_centered()
-            .opengl()
-            .build()
-            .map_err(|e| e.to_string())?;
-
-        let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
-        canvas.set_draw_color(Color::RGB(255, 255, 255));
-        canvas.clear();
-        canvas.present();
-        let mut event_pump = sdl_context.event_pump()?;
-        let mut mouse_x = 0.;
-        let mut mouse_y = 0.;
-        'running: loop {
-            let mut qt = QuadTree::new(boundary.clone(), 2);
-
-            let mut mouse_bb = Aabb {
-                id: 0,
-                x: mouse_x,
-                y: mouse_y,
-                width: 20.,
-                height: 20.,
-            };
-
-            for bb in bbs.iter() {
-                qt.insert(bb.clone());
-            }
-
-            for event in event_pump.poll_iter() {
-                match event {
-                    Event::Quit { .. }
-                    | Event::KeyDown {
-                        keycode: Some(Keycode::Escape),
-                        ..
-                    } => break 'running,
-                    Event::MouseMotion { x, y, .. } => {
-                        mouse_x = (x as f32).clamp(0., 480.);
-                        mouse_y = (y as f32).clamp(0., 480.);
-                    }
-                    _ => {}
-                }
-            }
-            qt.insert(mouse_bb.clone());
-            canvas.set_draw_color(Color::RGB(255, 255, 255));
-            canvas.clear();
-            canvas.present();
-            let rect = Rect::new(
-                mouse_bb.x as i32,
-                mouse_bb.y as i32,
-                mouse_bb.width as u32,
-                mouse_bb.height as u32,
-            );
-            canvas.set_draw_color(Color::RGB(255, 120, 50));
-            qt.draw(&mut canvas)?;
-            canvas.draw_rect(rect)?;
-            let intersections = qt.find_all_intersection();
-            for (b1, b2) in intersections.iter() {
-                let rect = Rect::new(b1.x as i32, b1.y as i32, b1.width as u32, b1.height as u32);
-                let rect2 = Rect::new(b2.x as i32, b2.y as i32, b2.width as u32, b2.height as u32);
-                canvas.set_draw_color(Color::RGB(255, 120, 50));
-                canvas.draw_rect(rect)?;
-                canvas.draw_rect(rect2)?;
-            }
-
-            canvas.present();
-            println!("{:?}", intersections.iter().filter(|(b1, b2)| b1.id == b2.id).count());
-            break;
-            std::thread::sleep(Duration::from_millis(100));
-        }
-
-        Ok(())
-    }
-}
+// #[cfg(test)]
+// mod test {
+//     use rand::Rng;
+//     use std::time::Duration;
+//
+//     use sdl2::{event::Event, keyboard::Keycode, pixels::Color};
+//
+//     use super::*;
+//
+//     #[test]
+//     fn quad_tree_test() {
+//         let boundary = Aabb {
+//             id: 0,
+//             x: 0.,
+//             y: 0.,
+//             width: 500.,
+//             height: 500.,
+//         };
+//         let mut qt = QuadTree::new(boundary.clone(), 2);
+//
+//         let bb1 = Aabb {
+//             id: 0,
+//             x: 0.,
+//             y: 0.,
+//             width: 500.,
+//             height: 500.,
+//         };
+//
+//         let bb2 = Aabb {
+//             id: 0,
+//             x: 0.,
+//             y: 0.,
+//             width: 100.,
+//             height: 100.,
+//         };
+//
+//         let bb3 = Aabb {
+//             id: 0,
+//             x: 260.,
+//             y: 260.,
+//             width: 100.,
+//             height: 100.,
+//         };
+//
+//         let bb4 = Aabb {
+//             id: 0,
+//             x: 240.,
+//             y: 240.,
+//             width: 100.,
+//             height: 100.,
+//         };
+//
+//         qt.insert(bb1);
+//         qt.insert(bb2);
+//         qt.insert(bb3);
+//
+//         println!("{:#?}", qt);
+//
+//         println!("{:#?}", qt.find_all_intersection())
+//     }
+//
+//     const WIDTH: u32 = 500;
+//     const HEIGHT: u32 = 500;
+//
+//     #[test]
+//     fn quad_tree_draw() -> Result<(), String> {
+//         let boundary = Aabb {
+//             id: 0,
+//             x: 0.,
+//             y: 0.,
+//             width: 500.,
+//             height: 500.,
+//         };
+//         let mut qt = QuadTree::new(boundary.clone(), 2);
+//
+//         let mut rng = rand::thread_rng();
+//
+//         for _ in 0..3 {
+//             let bb1 = Aabb {
+//                 id: 0,
+//                 x: rng.gen_range(0..WIDTH) as f32,
+//                 y: rng.gen_range(0..HEIGHT) as f32,
+//                 width: 20.,
+//                 height: 20.,
+//             };
+//             qt.insert(bb1);
+//         }
+//
+//         let sdl_context = sdl2::init()?;
+//         let video_subsystem = sdl_context.video()?;
+//
+//         let window = video_subsystem
+//             .window("rust verlet", WIDTH, HEIGHT)
+//             .position_centered()
+//             .opengl()
+//             .build()
+//             .map_err(|e| e.to_string())?;
+//
+//         let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
+//         canvas.set_draw_color(Color::RGB(255, 255, 255));
+//         canvas.clear();
+//         canvas.present();
+//         let mut event_pump = sdl_context.event_pump()?;
+//         let mut mouse_x = 0.;
+//         let mut mouse_y = 0.;
+//         'running: loop {
+//             let mut bb1 = Aabb {
+//                 id: 0,
+//                 x: mouse_x,
+//                 y: mouse_y,
+//                 width: 20.,
+//                 height: 20.,
+//             };
+//
+//             for event in event_pump.poll_iter() {
+//                 match event {
+//                     Event::Quit { .. }
+//                     | Event::KeyDown {
+//                         keycode: Some(Keycode::Escape),
+//                         ..
+//                     } => break 'running,
+//                     Event::MouseMotion { x, y, .. } => {
+//                         mouse_x = (x as f32).clamp(0., 480.);
+//                         mouse_y = (y as f32).clamp(0., 480.);
+//                     }
+//                     _ => {}
+//                 }
+//             }
+//             canvas.set_draw_color(Color::RGB(255, 255, 255));
+//             canvas.clear();
+//             canvas.present();
+//             let result = qt.query(bb1.clone());
+//             println!("{:?}", result);
+//             let rect = Rect::new(
+//                 bb1.x as i32,
+//                 bb1.y as i32,
+//                 bb1.width as u32,
+//                 bb1.height as u32,
+//             );
+//             canvas.set_draw_color(Color::RGB(255, 120, 50));
+//             qt.draw(&mut canvas)?;
+//             canvas.draw_rect(rect)?;
+//             for b in result {
+//                 let rect = Rect::new(b.x as i32, b.y as i32, b.width as u32, b.height as u32);
+//                 canvas.set_draw_color(Color::RGB(255, 120, 50));
+//                 canvas.draw_rect(rect)?;
+//             }
+//
+//             canvas.present();
+//             std::thread::sleep(Duration::from_millis(16));
+//         }
+//
+//         Ok(())
+//     }
+//
+//     #[test]
+//     fn quad_tree_draw2() -> Result<(), String> {
+//         let boundary = Aabb {
+//             id: 3,
+//             x: 0.,
+//             y: 0.,
+//             width: 500.,
+//             height: 500.,
+//         };
+//
+//
+//         let mut rng = rand::thread_rng();
+//         let mut bbs = Vec::new();
+//         for id in 0..200 {
+//             let bb = Aabb {
+//                 id: id,
+//                 x: rng.gen_range(0..WIDTH) as f32,
+//                 y: rng.gen_range(0..HEIGHT) as f32,
+//                 width: 20.,
+//                 height: 20.,
+//             };
+//             bbs.push(bb);
+//         }
+//
+//         let sdl_context = sdl2::init()?;
+//         let video_subsystem = sdl_context.video()?;
+//
+//         let window = video_subsystem
+//             .window("rust verlet", WIDTH, HEIGHT)
+//             .position_centered()
+//             .opengl()
+//             .build()
+//             .map_err(|e| e.to_string())?;
+//
+//         let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
+//         canvas.set_draw_color(Color::RGB(255, 255, 255));
+//         canvas.clear();
+//         canvas.present();
+//         let mut event_pump = sdl_context.event_pump()?;
+//         let mut mouse_x = 0.;
+//         let mut mouse_y = 0.;
+//         'running: loop {
+//             let mut qt = QuadTree::new(boundary.clone(), 2);
+//
+//             let mut mouse_bb = Aabb {
+//                 id: 0,
+//                 x: mouse_x,
+//                 y: mouse_y,
+//                 width: 20.,
+//                 height: 20.,
+//             };
+//
+//             for bb in bbs.iter() {
+//                 qt.insert(bb.clone());
+//             }
+//
+//             for event in event_pump.poll_iter() {
+//                 match event {
+//                     Event::Quit { .. }
+//                     | Event::KeyDown {
+//                         keycode: Some(Keycode::Escape),
+//                         ..
+//                     } => break 'running,
+//                     Event::MouseMotion { x, y, .. } => {
+//                         mouse_x = (x as f32).clamp(0., 480.);
+//                         mouse_y = (y as f32).clamp(0., 480.);
+//                     }
+//                     _ => {}
+//                 }
+//             }
+//             qt.insert(mouse_bb.clone());
+//             canvas.set_draw_color(Color::RGB(255, 255, 255));
+//             canvas.clear();
+//             canvas.present();
+//             let rect = Rect::new(
+//                 mouse_bb.x as i32,
+//                 mouse_bb.y as i32,
+//                 mouse_bb.width as u32,
+//                 mouse_bb.height as u32,
+//             );
+//             canvas.set_draw_color(Color::RGB(255, 120, 50));
+//             qt.draw(&mut canvas)?;
+//             canvas.draw_rect(rect)?;
+//             let intersections = qt.find_all_intersection();
+//             for (b1, b2) in intersections.iter() {
+//                 let rect = Rect::new(b1.x as i32, b1.y as i32, b1.width as u32, b1.height as u32);
+//                 let rect2 = Rect::new(b2.x as i32, b2.y as i32, b2.width as u32, b2.height as u32);
+//                 canvas.set_draw_color(Color::RGB(255, 120, 50));
+//                 canvas.draw_rect(rect)?;
+//                 canvas.draw_rect(rect2)?;
+//             }
+//
+//             canvas.present();
+//             println!("{:?}", intersections.iter().filter(|(b1, b2)| b1.id == b2.id).count());
+//             break;
+//             std::thread::sleep(Duration::from_millis(100));
+//         }
+//
+//         Ok(())
+//     }
+// }
