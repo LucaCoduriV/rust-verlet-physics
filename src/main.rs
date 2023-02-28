@@ -10,7 +10,7 @@ use image::GenericImageView;
 use sdl2::EventPump;
 
 use crate::physic_engine::{Solver, Vec2, VerletObject};
-use crate::quad_tree::{Aabb, QuadTree};
+use crate::quad_tree::{QuadTree};
 
 mod physic_engine;
 mod quad_tree;
@@ -19,7 +19,7 @@ const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
 const MAX_ANGLE: f32 = 2.;
 const OBJECT_SPAWN_SPEED: f32 = 100.;
-const MAX_OBJECT: usize = 1500;
+const MAX_OBJECT: usize = 1800;
 
 pub fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
@@ -38,8 +38,17 @@ pub fn main() -> Result<(), String> {
     canvas.present();
     let mut event_pump = sdl_context.event_pump()?;
 
-    let objects = run_loop(&mut canvas, &mut event_pump)?;
+    // create random colors
+    let mut rng = StdRng::seed_from_u64(42);
+    let mut colors: [(u8, u8, u8);MAX_OBJECT] = [(0,0,0);MAX_OBJECT];
+    for i in 0..colors.len(){
+        colors[i] = (rng.gen(), rng.gen(), rng.gen());
+    }
 
+    // run first simulation to get all objects end position
+    let objects = run_simulation(&mut canvas, &mut event_pump, &colors)?;
+
+    // set objects color from image
     let img = image::open("./planete.webp").unwrap();
     let mut colors = vec![];
     for object in objects.iter() {
@@ -50,22 +59,21 @@ pub fn main() -> Result<(), String> {
         colors.push((pixel.0[0], pixel.0[1], pixel.0[2]));
     }
 
-    let objects = run_loop(&mut canvas, &mut event_pump)?;
+    // run second simulation with image colors
+    let objects = run_simulation(&mut canvas, &mut event_pump, colors.as_slice())?;
 
     std::thread::sleep(Duration::new(10, 0));
-
     Ok(())
-
 }
 
-fn run_loop(canvas: &mut WindowCanvas, event_pump: &mut EventPump) -> Result<Vec<VerletObject>, String> {
+fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors: &[(u8, u8, u8)]) -> Result<Vec<VerletObject>, String> {
     let mut last_time = Instant::now();
     let mut nb_update: u32 = 0;
     let mut angle_counter: f32 = 0.;
 
     let mut objects = vec![];
-    let solver = Solver::new();
-    let mut rng = StdRng::seed_from_u64(42);
+    let mut solver = Solver::new();
+
 
     'running: loop {
         nb_update += 1;
@@ -73,7 +81,7 @@ fn run_loop(canvas: &mut WindowCanvas, event_pump: &mut EventPump) -> Result<Vec
         let delta_time = current_time.duration_since(last_time);
         last_time = current_time;
 
-        if objects.len() > MAX_OBJECT {
+        if objects.len() >= MAX_OBJECT {
             break 'running;
         }
 
@@ -98,10 +106,11 @@ fn run_loop(canvas: &mut WindowCanvas, event_pump: &mut EventPump) -> Result<Vec
         if nb_update > 1 {
             let angle: f32 = MAX_ANGLE * angle_counter.sin() + PI * 0.5;
             angle_counter += 0.1;
+            let color = colors[objects.len()];
             let mut object = VerletObject::new(
                 Vec2::new(WIDTH as f32 / 3., HEIGHT as f32 / 10.),
                 10.,
-                (rng.gen(), rng.gen(), rng.gen()),
+                (color.0, color.1, color.2),
             );
             solver.set_object_velocity(
                 &mut object,
@@ -118,7 +127,7 @@ fn run_loop(canvas: &mut WindowCanvas, event_pump: &mut EventPump) -> Result<Vec
         canvas
             .fill_circle((WIDTH / 2) as i32, (HEIGHT / 2) as i32, 500)
             .unwrap();
-
+        solver.draw(canvas)?;
         for (_, object) in (&objects).iter().enumerate() {
             canvas.set_draw_color(Color::RGB(object.color.0, object.color.1, object.color.2));
             canvas.fill_circle(

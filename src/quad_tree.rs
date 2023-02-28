@@ -126,6 +126,16 @@ impl QuadTreeNode {
         }
     }
 
+    fn clear(&mut self){
+        self.values.clear();
+        if !self.is_leaf() {
+            self.north_east = None;
+            self.north_west = None;
+            self.south_east = None;
+            self.south_west = None;
+        }
+    }
+
     fn query(&self, range: Aabb, arr: &mut Vec<Aabb>) {
         assert!(self.boundary.contains_aabb(&range));
 
@@ -292,6 +302,10 @@ impl QuadTree {
         Self {
             root: QuadTreeNode::new(boundary, capacity),
         }
+    }
+
+    pub fn clear(&mut self){
+        self.root.clear();
     }
 
     pub fn insert(&mut self, value: Aabb) {

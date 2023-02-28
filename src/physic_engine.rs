@@ -1,5 +1,6 @@
 use std::time::Duration;
 use cgmath::{MetricSpace, Vector2};
+use sdl2::render::WindowCanvas;
 use crate::quad_tree::{Aabb, QuadTree};
 
 pub type Vec2 = Vector2<f32>;
@@ -44,23 +45,25 @@ pub struct Solver {
     gravity: Vec2,
     sub_steps: u32,
     frame_dt: f32,
+    quad_tree: QuadTree,
 }
 
 impl Solver {
     pub fn new() -> Self {
         Self {
             gravity: Vec2::new(0., 1.),
-            sub_steps: 20,
+            sub_steps: 10,
             frame_dt: 1. / 60.,
+            quad_tree: QuadTree::new(Aabb::new(0, 0., 0., 1000., 1000.), 3),
         }
     }
 
-    pub fn update(&self, objects: &mut Vec<VerletObject>) {
+    pub fn update(&mut self, objects: &mut Vec<VerletObject>) {
         let sub_dt = self.frame_dt / self.sub_steps as f32;
         for _ in 0..self.sub_steps {
             Self::apply_gravity(objects);
             Self::apply_constraint(objects);
-            Self::solve_collision_quadtree(objects);
+            self.solve_collision_quadtree(objects);
             Self::update_position(objects, sub_dt);
         }
     }
@@ -106,17 +109,15 @@ impl Solver {
             }
         }
     }
-    fn solve_collision_quadtree(objects: &mut Vec<VerletObject>) {
-        let mut quadtree = QuadTree::new(Aabb::new(0, 0., 0., 1000., 1000.), 20);
-
+    fn solve_collision_quadtree(&mut self, objects: &mut Vec<VerletObject>) {
+        self.quad_tree.clear();
         for (id, object) in objects.iter().enumerate() {
             let x = object.position_current.x - object.radius;
             let y = object.position_current.y - object.radius;
-            quadtree.insert(Aabb::new(id, x, y, object.radius * 2., object.radius * 2.))
+            self.quad_tree.insert(Aabb::new(id, x, y, object.radius * 2., object.radius * 2.))
         }
 
-        let intersections = quadtree.find_all_intersection();
-        //println!("intersections: {:?}", intersections);
+        let intersections = self.quad_tree.find_all_intersection();
         for intersection in intersections {
             let a = intersection.0;
             let b = intersection.1;
@@ -135,5 +136,9 @@ impl Solver {
 
     pub fn set_object_velocity(&self, object: &mut VerletObject, velocity: Vec2) {
         object.set_velocity(velocity, self.frame_dt);
+    }
+
+    pub fn draw(&self, canvas: &mut WindowCanvas) -> Result<(), String>{
+        self.quad_tree.draw(canvas)
     }
 }
