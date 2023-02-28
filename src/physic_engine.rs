@@ -50,17 +50,17 @@ impl Solver {
     pub fn new() -> Self {
         Self {
             gravity: Vec2::new(0., 1.),
-            sub_steps: 10,
+            sub_steps: 20,
             frame_dt: 1. / 60.,
         }
     }
 
-    pub fn update(&self, objects: &mut Vec<VerletObject>, quadtree: &mut QuadTree) {
+    pub fn update(&self, objects: &mut Vec<VerletObject>) {
         let sub_dt = self.frame_dt / self.sub_steps as f32;
         for _ in 0..self.sub_steps {
             Self::apply_gravity(objects);
             Self::apply_constraint(objects);
-            Self::solve_collision(objects, quadtree);
+            Self::solve_collision_quadtree(objects);
             Self::update_position(objects, sub_dt);
         }
     }
@@ -78,8 +78,8 @@ impl Solver {
     }
 
     fn apply_constraint(objects: &mut Vec<VerletObject>) {
-        let constraint_center = Vec2::new(500. / 2., 500. / 2.);
-        let constraint_radius: f32 = 250.;
+        let constraint_center = Vec2::new(1000. / 2., 1000. / 2.);
+        let constraint_radius: f32 = 500.;
 
         for object in objects.iter_mut() {
             let v = constraint_center - object.position_current;
@@ -90,22 +90,24 @@ impl Solver {
             }
         }
     }
-
-    fn solve_collision(objects: &mut Vec<VerletObject>, quadtree: &mut QuadTree) {
-        // for ia in 0..objects.len() {
-        //     let (left, right) = objects.split_at_mut(ia);
-        //     let (object_a, right) = right.split_first_mut().unwrap();
-        //     for object_b in left.iter_mut().chain(right.iter_mut()) {
-        //         let collision_axis = object_a.position_current - object_b.position_current;
-        //         let dist = collision_axis.distance(Vec2::new(0., 0.));
-        //         if dist < object_a.radius + object_b.radius {
-        //             let n = collision_axis / dist;
-        //             let delta = object_a.radius + object_b.radius - dist;
-        //             object_a.position_current += 0.5 * delta * n;
-        //             object_b.position_current -= 0.5 * delta * n;
-        //         }
-        //     }
-        // }
+    fn solve_collision_bruteforce(objects: &mut Vec<VerletObject>) {
+        for ia in 0..objects.len() {
+            let (left, right) = objects.split_at_mut(ia);
+            let (object_a, right) = right.split_first_mut().unwrap();
+            for object_b in left.iter_mut().chain(right.iter_mut()) {
+                let collision_axis = object_a.position_current - object_b.position_current;
+                let dist = collision_axis.distance(Vec2::new(0., 0.));
+                if dist < object_a.radius + object_b.radius {
+                    let n = collision_axis / dist;
+                    let delta = object_a.radius + object_b.radius - dist;
+                    object_a.position_current += 0.5 * delta * n;
+                    object_b.position_current -= 0.5 * delta * n;
+                }
+            }
+        }
+    }
+    fn solve_collision_quadtree(objects: &mut Vec<VerletObject>) {
+        let mut quadtree = QuadTree::new(Aabb::new(0, 0., 0., 1000., 1000.), 20);
 
         for (id, object) in objects.iter().enumerate() {
             let x = object.position_current.x - object.radius;
@@ -114,12 +116,10 @@ impl Solver {
         }
 
         let intersections = quadtree.find_all_intersection();
+        //println!("intersections: {:?}", intersections);
         for intersection in intersections {
             let a = intersection.0;
             let b = intersection.1;
-            if a.id == b.id {
-                return;
-            }
 
             let collision_axis = Vec2::new(a.center().0, a.center().1)
                 - Vec2::new(b.center().0, b.center().1);
