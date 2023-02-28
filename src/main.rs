@@ -75,7 +75,7 @@ fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors:
     let mut nb_update: u32 = 0;
     let mut angle_counter: f32 = 0.;
 
-    let mut objects = vec![];
+    let mut objects = Vec::with_capacity(MAX_OBJECT);
     let mut solver = Solver::new();
 
     // Load a font

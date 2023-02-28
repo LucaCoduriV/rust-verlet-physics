@@ -44,7 +44,6 @@ pub struct Solver {
     gravity: Vec2,
     sub_steps: u32,
     frame_dt: f32,
-    quad_tree: QuadTree,
 }
 
 impl Solver {
@@ -53,7 +52,6 @@ impl Solver {
             gravity: Vec2::new(0., 1.),
             sub_steps: 10,
             frame_dt: 1. / 60.,
-            quad_tree: QuadTree::new(Aabb::new(0, 0., 0., 1000., 1000.), 3),
         }
     }
 
@@ -108,17 +106,18 @@ impl Solver {
             }
         }
     }
-    fn solve_collision_quadtree(&mut self, objects: &mut Vec<VerletObject>) {
+    fn solve_collision_quadtree(& mut self, objects: &mut Vec<VerletObject>) {
         const RESPONSE_COEF:f32 = 0.75;
 
-        self.quad_tree.clear();
+        let mut quad_tree = QuadTree::new(Aabb::new(0, 0., 0., 1000., 1000.), 3);
+
         for (id, object) in objects.iter().enumerate() {
             let x = object.position_current.x - object.radius;
             let y = object.position_current.y - object.radius;
-            self.quad_tree.insert(Aabb::new(id, x, y, object.radius * 2., object.radius * 2.))
+            quad_tree.insert(Aabb::new(id, x, y, object.radius * 2., object.radius * 2.))
         }
 
-        let intersections = self.quad_tree.find_all_intersection();
+        let intersections = quad_tree.find_all_intersection();
         for intersection in intersections {
             let a = intersection.0;
             let b = intersection.1;
@@ -143,9 +142,5 @@ impl Solver {
 
     pub fn set_object_velocity(&self, object: &mut VerletObject, velocity: Vec2) {
         object.set_velocity(velocity, self.frame_dt);
-    }
-
-    pub fn draw(&self, canvas: &mut WindowCanvas) -> Result<(), String>{
-        self.quad_tree.draw(canvas)
     }
 }

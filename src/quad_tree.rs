@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 
 use sdl2::pixels::Color;
 use sdl2::{rect::Rect, render::WindowCanvas};
@@ -66,17 +66,17 @@ impl Aabb {
 }
 
 #[derive(Debug)]
-struct QuadTreeNode {
+struct QuadTreeNode<'a> {
     boundary: Aabb,
     threshold: usize,
     values: Vec<Aabb>,
-    north_east: Option<Box<RefCell<QuadTreeNode>>>,
-    north_west: Option<Box<RefCell<QuadTreeNode>>>,
-    south_east: Option<Box<RefCell<QuadTreeNode>>>,
-    south_west: Option<Box<RefCell<QuadTreeNode>>>,
+    north_east: Option<Box<RefCell<QuadTreeNode<'a>>>>,
+    north_west: Option<Box<RefCell<QuadTreeNode<'a>>>>,
+    south_east: Option<Box<RefCell<QuadTreeNode<'a>>>>,
+    south_west: Option<Box<RefCell<QuadTreeNode<'a>>>>,
 }
 
-impl QuadTreeNode {
+impl<'a> QuadTreeNode<'a> {
     fn new(boundary: Aabb, capacity: usize) -> Self {
         Self {
             boundary,
@@ -145,46 +145,48 @@ impl QuadTreeNode {
 
         if !self.is_leaf() {
             let nw = self.north_west.as_ref().unwrap().borrow();
+            let ne = self.north_east.as_ref().unwrap().borrow();
+            let sw = self.south_west.as_ref().unwrap().borrow();
+            let se = self.south_east.as_ref().unwrap().borrow();
+
+
             if nw.boundary.contains_aabb(&range) {
                 return nw.query(range.clone(), arr);
             }
 
-            let ne = self.north_east.as_ref().unwrap().borrow();
             if ne.boundary.contains_aabb(&range) {
                 return ne.query(range.clone(), arr);
             }
 
-            let sw = self.south_west.as_ref().unwrap().borrow();
             if sw.boundary.contains_aabb(&range) {
                 return sw.query(range.clone(), arr);
             }
 
-            let se = self.south_east.as_ref().unwrap().borrow();
             if se.boundary.contains_aabb(&range) {
                 return se.query(range.clone(), arr);
             }
         }
     }
 
-    fn find_all_intersections(&self, arr: &mut Vec<(Aabb, Aabb)>) {
+    fn find_all_intersections(&'a self, arr: &mut Vec<(&'a Aabb, &'a Aabb)>) {
         for i in 0..self.values.len() {
             for j in i + 1..self.values.len() {
                 if self.values[i].intersects(&self.values[j]) {
-                    arr.push((self.values[i].clone(), self.values[j].clone()))
+                    arr.push((&self.values[i], &self.values[j]))
                 }
             }
         }
         if !self.is_leaf() {
-            let ne = self.north_east.as_ref().unwrap().borrow();
-            let nw = self.north_west.as_ref().unwrap().borrow();
-            let se = self.south_east.as_ref().unwrap().borrow();
-            let sw = self.south_west.as_ref().unwrap().borrow();
+            let ne:Ref<QuadTreeNode<'a>> = self.north_east.as_ref().unwrap().borrow();
+            let nw:Ref<QuadTreeNode<'a>> = self.north_west.as_ref().unwrap().borrow();
+            let se:Ref<QuadTreeNode<'a>> = self.south_east.as_ref().unwrap().borrow();
+            let sw:Ref<QuadTreeNode<'a>> = self.south_west.as_ref().unwrap().borrow();
 
             for value in self.values.iter() {
-                ne.find_intersections_in_descendants(value, arr);
-                nw.find_intersections_in_descendants(value, arr);
-                se.find_intersections_in_descendants(value, arr);
-                sw.find_intersections_in_descendants(value, arr);
+                ne.find_intersections_with_all(value, arr);
+                nw.find_intersections_with_all(value, arr);
+                se.find_intersections_with_all(value, arr);
+                sw.find_intersections_with_all(value, arr);
             }
 
             ne.find_all_intersections(arr);
@@ -194,10 +196,11 @@ impl QuadTreeNode {
         }
     }
 
-    fn find_intersections_in_descendants(&self, value: &Aabb, arr: &mut Vec<(Aabb, Aabb)>) {
+    fn find_intersections_with_all(&'a self, value: &'a Aabb, arr: &mut Vec<(&'a Aabb,
+                                                                             &'a Aabb)>) {
         for d_value in self.values.iter() {
             if value.intersects(d_value) {
-                arr.push((value.clone(), d_value.clone()))
+                arr.push((&value, &d_value));
             }
         }
         if !self.is_leaf() {
@@ -206,10 +209,10 @@ impl QuadTreeNode {
             let se = self.south_east.as_ref().unwrap().borrow();
             let sw = self.south_west.as_ref().unwrap().borrow();
 
-            ne.find_intersections_in_descendants(value, arr);
-            nw.find_intersections_in_descendants(value, arr);
-            se.find_intersections_in_descendants(value, arr);
-            sw.find_intersections_in_descendants(value, arr);
+            ne.find_intersections_with_all(value, arr);
+            nw.find_intersections_with_all(value, arr);
+            se.find_intersections_with_all(value, arr);
+            sw.find_intersections_with_all(value, arr);
         }
     }
 
@@ -291,11 +294,11 @@ impl QuadTreeNode {
 }
 
 #[derive(Debug)]
-pub struct QuadTree {
-    root: QuadTreeNode,
+pub struct QuadTree<'a> {
+    root: QuadTreeNode<'a>,
 }
 
-impl QuadTree {
+impl<'a> QuadTree<'a> {
     pub fn new(boundary: Aabb, capacity: usize) -> Self {
         Self {
             root: QuadTreeNode::new(boundary, capacity),
@@ -316,7 +319,7 @@ impl QuadTree {
         arr
     }
 
-    pub fn find_all_intersection(&self) -> Vec<(Aabb, Aabb)> {
+    pub fn find_all_intersection(&'a self) -> Vec<(&Aabb, &Aabb)> {
         let mut arr = Vec::new();
         self.root.find_all_intersections(&mut arr);
         arr
