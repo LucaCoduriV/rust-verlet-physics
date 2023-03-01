@@ -1,5 +1,4 @@
 use std::cell::{Ref, RefCell};
-use std::marker::PhantomData;
 
 use sdl2::pixels::Color;
 use sdl2::{rect::Rect, render::WindowCanvas};
@@ -67,17 +66,17 @@ impl Aabb {
 }
 
 #[derive(Debug)]
-struct QuadTreeNode<'a:'v, 'v> {
+struct QuadTreeNode{
     boundary: Aabb,
     threshold: usize,
-    values: Vec<Aabb>,
-    north_east: Option<Box<RefCell<QuadTreeNode<'a,'v>>>>,
-    north_west: Option<Box<RefCell<QuadTreeNode<'a,'v>>>>,
-    south_east: Option<Box<RefCell<QuadTreeNode<'a,'v>>>>,
-    south_west: Option<Box<RefCell<QuadTreeNode<'a,'v>>>>,
+    values: Vec<usize>,
+    north_east: Option<Box<RefCell<QuadTreeNode>>>,
+    north_west: Option<Box<RefCell<QuadTreeNode>>>,
+    south_east: Option<Box<RefCell<QuadTreeNode>>>,
+    south_west: Option<Box<RefCell<QuadTreeNode>>>,
 }
 
-impl<'a:'v, 'v> QuadTreeNode<'a, 'v> {
+impl QuadTreeNode {
     fn new(boundary: Aabb, capacity: usize) -> Self {
         Self {
             boundary,
@@ -94,8 +93,8 @@ impl<'a:'v, 'v> QuadTreeNode<'a, 'v> {
         self.north_west.is_none()
     }
 
-    fn insert(&mut self, value: Aabb) {
-        assert!(self.boundary.contains_aabb(&value), "{:?}", value);
+    fn insert(&mut self, value: usize, store: &Vec<Aabb>) {
+        //assert!(self.boundary.contains_aabb(&store[value]), "{:?}", value);
 
         if self.is_leaf() {
             if self.values.len() < self.threshold {
@@ -103,7 +102,7 @@ impl<'a:'v, 'v> QuadTreeNode<'a, 'v> {
                 return;
             } else {
                 self.divide();
-                self.insert(value);
+                self.insert(value, store);
             }
         } else {
             let mut nw = self.north_west.as_mut().unwrap().borrow_mut();
@@ -111,14 +110,14 @@ impl<'a:'v, 'v> QuadTreeNode<'a, 'v> {
             let mut sw = self.south_west.as_mut().unwrap().borrow_mut();
             let mut se = self.south_east.as_mut().unwrap().borrow_mut();
 
-            if nw.boundary.contains_aabb(&value) {
-                nw.insert(value);
-            } else if ne.boundary.contains_aabb(&value) {
-                ne.insert(value);
-            } else if sw.boundary.contains_aabb(&value) {
-                sw.insert(value);
-            } else if se.boundary.contains_aabb(&value) {
-                se.insert(value);
+            if nw.boundary.contains_aabb(&store[value]) {
+                nw.insert(value, store);
+            } else if ne.boundary.contains_aabb(&store[value]) {
+                ne.insert(value, store);
+            } else if sw.boundary.contains_aabb(&store[value]) {
+                sw.insert(value, store);
+            } else if se.boundary.contains_aabb(&store[value]) {
+                se.insert(value, store);
             } else {
                 self.values.push(value);
             }
@@ -135,12 +134,12 @@ impl<'a:'v, 'v> QuadTreeNode<'a, 'v> {
         }
     }
 
-    fn query(&self, range: Aabb, arr: &mut Vec<Aabb>) {
+    fn query(&self, range: Aabb, arr: &mut Vec<usize>, store: &Vec<Aabb>) {
         assert!(self.boundary.contains_aabb(&range));
 
         for value in self.values.iter() {
-            if range.intersects(value) {
-                arr.push(value.clone())
+            if range.intersects(&store[*value]) {
+                arr.push(*value)
             }
         }
 
@@ -152,28 +151,30 @@ impl<'a:'v, 'v> QuadTreeNode<'a, 'v> {
 
 
             if nw.boundary.contains_aabb(&range) {
-                return nw.query(range.clone(), arr);
+                return nw.query(range.clone(), arr, &store);
             }
 
             if ne.boundary.contains_aabb(&range) {
-                return ne.query(range.clone(), arr);
+                return ne.query(range.clone(), arr, &store);
             }
 
             if sw.boundary.contains_aabb(&range) {
-                return sw.query(range.clone(), arr);
+                return sw.query(range.clone(), arr, &store);
             }
 
             if se.boundary.contains_aabb(&range) {
-                return se.query(range.clone(), arr);
+                return se.query(range.clone(), arr, &store);
             }
         }
     }
 
-    fn find_all_intersections(&'a self, arr: &mut Vec<(&'v Aabb, &'v Aabb)>) {
+    fn find_all_intersections(&self, arr: &mut Vec<(usize, usize)>, store: &Vec<Aabb>) {
         for i in 0..self.values.len() {
             for j in i + 1..self.values.len() {
-                if self.values[i].intersects(&self.values[j]) {
-                    arr.push((&self.values[i], &self.values[j]))
+                let a = &store[self.values[i]];
+                let b = &store[self.values[j]];
+                if a.intersects(b) {
+                    arr.push((self.values[i], self.values[j]))
                 }
             }
         }
@@ -184,24 +185,23 @@ impl<'a:'v, 'v> QuadTreeNode<'a, 'v> {
             let sw = self.south_west.as_ref().unwrap().borrow();
 
             for value in self.values.iter() {
-                ne.find_intersections_with_all(value, arr);
-                nw.find_intersections_with_all(value, arr);
-                se.find_intersections_with_all(value, arr);
-                sw.find_intersections_with_all(value, arr);
+                ne.find_all_intersections_with(*value, arr, store);
+                nw.find_all_intersections_with(*value, arr, store);
+                se.find_all_intersections_with(*value, arr, store);
+                sw.find_all_intersections_with(*value, arr, store);
             }
 
-            ne.find_all_intersections(arr);
-            nw.find_all_intersections(arr);
-            se.find_all_intersections(arr);
-            sw.find_all_intersections(arr);
+            ne.find_all_intersections(arr, store);
+            nw.find_all_intersections(arr, store);
+            se.find_all_intersections(arr, store);
+            sw.find_all_intersections(arr, store);
         }
     }
 
-    fn find_intersections_with_all(&'a self, value: &'a Aabb, arr: &mut Vec<(&'a Aabb,
-                                                                             &'a Aabb)>) {
+    fn find_all_intersections_with(&self, value: usize, arr: &mut Vec<(usize, usize)>, store: &Vec<Aabb>) {
         for d_value in self.values.iter() {
-            if value.intersects(d_value) {
-                arr.push((&value, &d_value));
+            if store[value].intersects(&store[*d_value]) {
+                arr.push((value, *d_value));
             }
         }
         if !self.is_leaf() {
@@ -210,10 +210,10 @@ impl<'a:'v, 'v> QuadTreeNode<'a, 'v> {
             let se = self.south_east.as_ref().unwrap().borrow();
             let sw = self.south_west.as_ref().unwrap().borrow();
 
-            ne.find_intersections_with_all(value, arr);
-            nw.find_intersections_with_all(value, arr);
-            se.find_intersections_with_all(value, arr);
-            sw.find_intersections_with_all(value, arr);
+            ne.find_all_intersections_with(value, arr, store);
+            nw.find_all_intersections_with(value, arr, store);
+            se.find_all_intersections_with(value, arr, store);
+            sw.find_all_intersections_with(value, arr, store);
         }
     }
 
@@ -255,65 +255,56 @@ impl<'a:'v, 'v> QuadTreeNode<'a, 'v> {
         self.south_west = Some(Box::new(RefCell::new(QuadTreeNode::new(sw, self.threshold))));
     }
 
-    fn draw(&self, canvas: &mut WindowCanvas) -> Result<(), String> {
-        let rect = Rect::new(
-            self.boundary.x as i32,
-            self.boundary.y as i32,
-            self.boundary.width as u32,
-            self.boundary.height as u32,
-        );
-        canvas.set_draw_color(Color::RGB(255, 0, 0));
-        canvas.draw_rect(rect)?;
-
-        canvas.set_draw_color(Color::RGB(0, 255, 0));
-        for p in self.values.iter() {
-            let center = p.center();
-            canvas.draw_point(sdl2::rect::Point::new(center.0 as i32, center.1 as i32))?;
-
-            let rect = Rect::new(p.x as i32, p.y as i32, p.width as u32, p.height as u32);
-            canvas.draw_rect(rect)?;
-        }
-
-        if let Some(qt) = self.north_west.as_ref() {
-            qt.borrow().draw(canvas)?;
-        }
-
-        if let Some(qt) = self.north_east.as_ref() {
-            qt.borrow().draw(canvas)?;
-        }
-
-        if let Some(qt) = self.south_west.as_ref() {
-            qt.borrow().draw(canvas)?;
-        }
-
-        if let Some(qt) = self.south_east.as_ref() {
-            qt.borrow().draw(canvas)?;
-        }
-
-        Ok(())
-    }
-}
-
-fn testmdr() {
-    let mut node = QuadTreeNode::new(Aabb::new(0,0.,0.,10.,10.), 2);
-    node.insert(Aabb::new(0,0.,0.,10.,10.));
-    let mut arr = Vec::new();
-    node.find_all_intersections(&mut arr);
-
-    for o in arr.iter(){
-        println!("{:?}", o);
-    }
+    // fn draw(&self, canvas: &mut WindowCanvas) -> Result<(), String> {
+    //     let rect = Rect::new(
+    //         self.boundary.x as i32,
+    //         self.boundary.y as i32,
+    //         self.boundary.width as u32,
+    //         self.boundary.height as u32,
+    //     );
+    //     canvas.set_draw_color(Color::RGB(255, 0, 0));
+    //     canvas.draw_rect(rect)?;
+    //
+    //     canvas.set_draw_color(Color::RGB(0, 255, 0));
+    //     for p in self.values.iter() {
+    //         let center = p.center();
+    //         canvas.draw_point(sdl2::rect::Point::new(center.0 as i32, center.1 as i32))?;
+    //
+    //         let rect = Rect::new(p.x as i32, p.y as i32, p.width as u32, p.height as u32);
+    //         canvas.draw_rect(rect)?;
+    //     }
+    //
+    //     if let Some(qt) = self.north_west.as_ref() {
+    //         qt.borrow().draw(canvas)?;
+    //     }
+    //
+    //     if let Some(qt) = self.north_east.as_ref() {
+    //         qt.borrow().draw(canvas)?;
+    //     }
+    //
+    //     if let Some(qt) = self.south_west.as_ref() {
+    //         qt.borrow().draw(canvas)?;
+    //     }
+    //
+    //     if let Some(qt) = self.south_east.as_ref() {
+    //         qt.borrow().draw(canvas)?;
+    //     }
+    //
+    //     Ok(())
+    // }
 }
 
 #[derive(Debug)]
-pub struct QuadTree<'a> {
-    root: QuadTreeNode<'a,'a>,
+pub struct QuadTree {
+    root: QuadTreeNode,
+    store: Vec<Aabb>,
 }
 
-impl<'a> QuadTree<'a> {
+impl QuadTree {
     pub fn new(boundary: Aabb, capacity: usize) -> Self {
         Self {
             root: QuadTreeNode::new(boundary, capacity),
+            store: Vec::new(),
         }
     }
 
@@ -322,24 +313,26 @@ impl<'a> QuadTree<'a> {
     }
 
     pub fn insert(&mut self, value: Aabb) {
-        self.root.insert(value)
+        self.store.push(value);
+        self.root.insert(self.store.len() - 1, &mut self.store);
     }
 
-    pub fn query(&self, range: Aabb) -> Vec<Aabb> {
+    pub fn query(&self, range: Aabb) -> Vec<&Aabb> {
         let mut arr = Vec::new();
-        self.root.query(range, &mut arr);
-        arr
+        self.root.query(range, &mut arr, &self.store);
+        arr.into_iter().map(|x| &self.store[x]).collect()
     }
 
-    pub fn find_all_intersection(&'a self) -> Vec<(&Aabb, &Aabb)> {
+    pub fn find_all_intersection(& self)
+    -> Vec<(&Aabb, &Aabb)> {
         let mut arr = Vec::new();
-        self.root.find_all_intersections(&mut arr);
-        arr
+        self.root.find_all_intersections(&mut arr, &self.store);
+        arr.into_iter().map(|x| (&self.store[x.0], &self.store[x.0])).collect()
     }
 
-    pub fn draw(&self, canvas: &mut WindowCanvas) -> Result<(), String> {
-        self.root.draw(canvas)
-    }
+    // pub fn draw(&self, canvas: &mut WindowCanvas) -> Result<(), String> {
+    //     self.root.draw(canvas)
+    // }
 }
 
 // #[cfg(test)]
