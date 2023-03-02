@@ -16,7 +16,6 @@ use physic_engine::{Solver, Vec2, VerletObject};
 use crate::drawing_functions::DrawBasicShapes;
 
 mod physic_engine;
-mod quad_tree;
 mod drawing_functions;
 
 const WIDTH: u32 = 1000;

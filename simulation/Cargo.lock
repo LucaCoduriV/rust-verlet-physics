@@ -622,7 +622,6 @@ dependencies = [
 name = "quadtree"
 version = "0.1.0"
 dependencies = [
- "criterion",
  "rand",
  "sdl2",
 ]
@@ -708,6 +707,7 @@ name = "rust-physics"
 version = "0.1.0"
 dependencies = [
  "cgmath",
+ "criterion",
  "image",
  "quadtree",
  "rand",
@@ -868,13 +868,6 @@ name = "unicode-ident"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "84a22b9f218b40614adcb3f4ff08b703773ad44fa9423e4e0d346d5db86e4ebc"
-
-[[package]]
-name = "uniform_grid"
-version = "0.1.0"
-dependencies = [
- "cgmath",
-]
 
 [[package]]
 name = "version-compare"

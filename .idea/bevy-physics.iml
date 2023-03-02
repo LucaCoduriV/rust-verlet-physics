@@ -2,8 +2,13 @@
 <module type="CPP_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/quadtree/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/quadtree/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/simulation/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/uniform_grid/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
+      <excludeFolder url="file://$MODULE_DIR$/quadtree/target" />
+      <excludeFolder url="file://$MODULE_DIR$/simulation/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

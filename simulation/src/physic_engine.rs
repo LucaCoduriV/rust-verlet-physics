@@ -1,6 +1,5 @@
 use cgmath::{MetricSpace, Vector2};
-use sdl2::render::WindowCanvas;
-use crate::quad_tree::{Aabb, QuadTree};
+use quadtree::quad_tree::{Aabb, QuadTree};
 
 pub type Vec2 = Vector2<f32>;
 
@@ -109,7 +108,7 @@ impl Solver {
     fn solve_collision_quadtree(& mut self, objects: &mut Vec<VerletObject>) {
         const RESPONSE_COEF:f32 = 0.75;
 
-        let mut quad_tree = QuadTree::with_store_size(Aabb::new(0, 0., 0., 1000., 1000.), 4, objects.len());
+        let mut quad_tree = QuadTree::with_store_size(Aabb::new(0, 0., 0., 1000., 1000.), 10, objects.len());
 
         for (id, object) in objects.iter().enumerate() {
             let x = object.position_current.x - object.radius;

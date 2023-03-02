@@ -1,0 +1,13 @@
+[package]
+name = "rust-physics"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cgmath = "0.18.0"
+rand = "0.8.5"
+sdl2 = {version = "0.35.2", features = ["ttf"]}
+image = "0.24.5"
+quadtree = { path = "../quadtree" }
