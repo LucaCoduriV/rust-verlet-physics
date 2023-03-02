@@ -109,7 +109,7 @@ impl Solver {
     fn solve_collision_quadtree(& mut self, objects: &mut Vec<VerletObject>) {
         const RESPONSE_COEF:f32 = 0.75;
 
-        let mut quad_tree = QuadTree::new(Aabb::new(0, 0., 0., 1000., 1000.), 3);
+        let mut quad_tree = QuadTree::with_store_size(Aabb::new(0, 0., 0., 1000., 1000.), 4, objects.len());
 
         for (id, object) in objects.iter().enumerate() {
             let x = object.position_current.x - object.radius;

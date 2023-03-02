@@ -70,10 +70,10 @@ struct QuadTreeNode{
     boundary: Aabb,
     threshold: usize,
     values: Vec<usize>,
-    north_east: Option<Box<RefCell<QuadTreeNode>>>,
-    north_west: Option<Box<RefCell<QuadTreeNode>>>,
-    south_east: Option<Box<RefCell<QuadTreeNode>>>,
-    south_west: Option<Box<RefCell<QuadTreeNode>>>,
+    north_east: Option<Box<QuadTreeNode>>,
+    north_west: Option<Box<QuadTreeNode>>,
+    south_east: Option<Box<QuadTreeNode>>,
+    south_west: Option<Box<QuadTreeNode>>,
 }
 
 impl QuadTreeNode {
@@ -105,10 +105,10 @@ impl QuadTreeNode {
                 self.insert(value, store);
             }
         } else {
-            let mut nw = self.north_west.as_mut().unwrap().borrow_mut();
-            let mut ne = self.north_east.as_mut().unwrap().borrow_mut();
-            let mut sw = self.south_west.as_mut().unwrap().borrow_mut();
-            let mut se = self.south_east.as_mut().unwrap().borrow_mut();
+            let mut nw = self.north_west.as_mut().unwrap();
+            let mut ne = self.north_east.as_mut().unwrap();
+            let mut sw = self.south_west.as_mut().unwrap();
+            let mut se = self.south_east.as_mut().unwrap();
 
             if nw.boundary.contains_aabb(&store[value]) {
                 nw.insert(value, store);
@@ -144,10 +144,10 @@ impl QuadTreeNode {
         }
 
         if !self.is_leaf() {
-            let nw = self.north_west.as_ref().unwrap().borrow();
-            let ne = self.north_east.as_ref().unwrap().borrow();
-            let sw = self.south_west.as_ref().unwrap().borrow();
-            let se = self.south_east.as_ref().unwrap().borrow();
+            let nw = self.north_west.as_ref().unwrap();
+            let ne = self.north_east.as_ref().unwrap();
+            let sw = self.south_west.as_ref().unwrap();
+            let se = self.south_east.as_ref().unwrap();
 
 
             if nw.boundary.contains_aabb(&range) {
@@ -179,10 +179,10 @@ impl QuadTreeNode {
             }
         }
         if !self.is_leaf() {
-            let ne = self.north_east.as_ref().unwrap().borrow();
-            let nw = self.north_west.as_ref().unwrap().borrow();
-            let se = self.south_east.as_ref().unwrap().borrow();
-            let sw = self.south_west.as_ref().unwrap().borrow();
+            let ne = self.north_east.as_ref().unwrap();
+            let nw = self.north_west.as_ref().unwrap();
+            let se = self.south_east.as_ref().unwrap();
+            let sw = self.south_west.as_ref().unwrap();
 
             for value in self.values.iter() {
                 ne.find_all_intersections_with(*value, arr, store);
@@ -205,10 +205,10 @@ impl QuadTreeNode {
             }
         }
         if !self.is_leaf() {
-            let ne = self.north_east.as_ref().unwrap().borrow();
-            let nw = self.north_west.as_ref().unwrap().borrow();
-            let se = self.south_east.as_ref().unwrap().borrow();
-            let sw = self.south_west.as_ref().unwrap().borrow();
+            let ne = self.north_east.as_ref().unwrap();
+            let nw = self.north_west.as_ref().unwrap();
+            let se = self.south_east.as_ref().unwrap();
+            let sw = self.south_west.as_ref().unwrap();
 
             ne.find_all_intersections_with(value, arr, store);
             nw.find_all_intersections_with(value, arr, store);
@@ -225,7 +225,7 @@ impl QuadTreeNode {
             height: self.boundary.height / 2.,
             width: self.boundary.width / 2.,
         };
-        self.north_east = Some(Box::new(RefCell::new(QuadTreeNode::new(ne, self.threshold))));
+        self.north_east = Some(Box::new(QuadTreeNode::new(ne, self.threshold)));
 
         let nw = Aabb {
             id: 0,
@@ -234,7 +234,7 @@ impl QuadTreeNode {
             height: self.boundary.height / 2.,
             width: self.boundary.width / 2.,
         };
-        self.north_west = Some(Box::new(RefCell::new(QuadTreeNode::new(nw, self.threshold))));
+        self.north_west = Some(Box::new(QuadTreeNode::new(nw, self.threshold)));
 
         let se = Aabb {
             id: 0,
@@ -243,7 +243,7 @@ impl QuadTreeNode {
             height: self.boundary.height / 2.,
             width: self.boundary.width / 2.,
         };
-        self.south_east = Some(Box::new(RefCell::new(QuadTreeNode::new(se, self.threshold))));
+        self.south_east = Some(Box::new(QuadTreeNode::new(se, self.threshold)));
 
         let sw = Aabb {
             id: 0,
@@ -252,7 +252,7 @@ impl QuadTreeNode {
             height: self.boundary.height / 2.,
             width: self.boundary.width / 2.,
         };
-        self.south_west = Some(Box::new(RefCell::new(QuadTreeNode::new(sw, self.threshold))));
+        self.south_west = Some(Box::new(QuadTreeNode::new(sw, self.threshold)));
     }
 
     fn draw(&self, canvas: &mut WindowCanvas, store: &Vec<Aabb>) -> Result<(), String> {
@@ -275,19 +275,19 @@ impl QuadTreeNode {
         }
 
         if let Some(qt) = self.north_west.as_ref() {
-            qt.borrow().draw(canvas, store)?;
+            qt.draw(canvas, store)?;
         }
 
         if let Some(qt) = self.north_east.as_ref() {
-            qt.borrow().draw(canvas, store)?;
+            qt.draw(canvas, store)?;
         }
 
         if let Some(qt) = self.south_west.as_ref() {
-            qt.borrow().draw(canvas, store)?;
+            qt.draw(canvas, store)?;
         }
 
         if let Some(qt) = self.south_east.as_ref() {
-            qt.borrow().draw(canvas, store)?;
+            qt.draw(canvas, store)?;
         }
 
         Ok(())
@@ -301,10 +301,17 @@ pub struct QuadTree {
 }
 
 impl QuadTree {
-    pub fn new(boundary: Aabb, capacity: usize) -> Self {
+    pub fn new(boundary: Aabb, threshold: usize) -> Self {
         Self {
-            root: QuadTreeNode::new(boundary, capacity),
+            root: QuadTreeNode::new(boundary, threshold),
             store: Vec::new(),
+        }
+    }
+
+    pub fn with_store_size(boundary: Aabb, threshold: usize, size:usize) -> Self {
+        Self {
+            root: QuadTreeNode::new(boundary, threshold),
+            store: Vec::with_capacity(size),
         }
     }
 
