@@ -57,6 +57,16 @@ impl<'a, V> UniformGrid<'a, V> {
             }
         }
     }
+
+    pub fn clear(&mut self){
+        for entity in &self.store {
+            for (i, j) in &entity.cells {
+                self.cells[*i][*j].objects.clear()
+            }
+        }
+
+        self.store.clear()
+    }
 }
 
 
