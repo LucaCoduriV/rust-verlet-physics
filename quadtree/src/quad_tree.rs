@@ -63,6 +63,22 @@ impl Aabb {
     pub fn bottom(&self) -> f32 {
         self.y + self.height
     }
+
+    pub fn bottom_right(&self) -> Point {
+        (self.right(), self.bottom())
+    }
+
+    pub fn bottom_left(&self) -> Point {
+        (self.left(), self.bottom())
+    }
+
+    pub fn top_right(&self) -> Point {
+        (self.right(), self.top())
+    }
+
+    pub fn top_left(&self) -> Point {
+        (self.left(), self.top())
+    }
 }
 
 #[derive(Debug)]
