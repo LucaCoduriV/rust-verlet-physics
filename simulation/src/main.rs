@@ -22,7 +22,7 @@ const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
 const MAX_ANGLE: f32 = 2.;
 const OBJECT_SPAWN_SPEED: f32 = 100.;
-const MAX_OBJECT: usize = 2300;
+const MAX_OBJECT: usize = 10000;
 
 pub fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
@@ -132,7 +132,21 @@ fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors:
             let color = colors[objects.len()];
             let mut object = VerletObject::new(
                 Vec2::new(WIDTH as f32 / 3., HEIGHT as f32 / 10.),
-                10.,
+                5.,
+                (color.0, color.1, color.2),
+            );
+            solver.set_object_velocity(
+                &mut object,
+                OBJECT_SPAWN_SPEED * Vec2::new(angle.cos(), angle.sin()),
+            );
+            objects.push(object);
+
+            let angle: f32 = MAX_ANGLE * angle_counter.sin() + PI * 0.5;
+            angle_counter += 0.1;
+            let color = colors[objects.len()];
+            let mut object = VerletObject::new(
+                Vec2::new(700., HEIGHT as f32 / 10.),
+                5.,
                 (color.0, color.1, color.2),
             );
             solver.set_object_velocity(
@@ -166,6 +180,7 @@ fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors:
         canvas.copy(&texture, None, Some(Rect::new(0, 0, (text.len() * 7) as u32, 30)))?;
         canvas.copy(&texture2, None, Some(Rect::new(0, 25, (text2.len() * 7) as u32, 30)))?;
         canvas.present();
+        // std::thread::sleep(Duration::from_millis(200));
     }
 
     Ok(objects)

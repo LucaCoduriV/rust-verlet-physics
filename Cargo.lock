@@ -712,6 +712,7 @@ dependencies = [
  "quadtree",
  "rand",
  "sdl2",
+ "uniform_grid",
 ]
 
 [[package]]

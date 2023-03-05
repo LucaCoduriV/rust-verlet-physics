@@ -1,3 +1,4 @@
+use std::time::Duration;
 use cgmath::{MetricSpace, Vector2};
 use quadtree::quad_tree::{Aabb, QuadTree};
 
@@ -43,6 +44,7 @@ pub struct Solver {
     gravity: Vec2,
     sub_steps: u32,
     frame_dt: f32,
+    uniform_grid: uniform_grid::UniformGrid<usize>
 }
 
 impl Solver {
@@ -51,6 +53,7 @@ impl Solver {
             gravity: Vec2::new(0., 1.),
             sub_steps: 10,
             frame_dt: 1. / 60.,
+            uniform_grid: uniform_grid::UniformGrid::new(1000., 1000., 15, 15)
         }
     }
 
@@ -59,7 +62,7 @@ impl Solver {
         for _ in 0..self.sub_steps {
             Self::apply_gravity(objects);
             Self::apply_constraint(objects);
-            self.solve_collision_quadtree(objects);
+            self.solve_collision_uniform_grid(objects);
             Self::update_position(objects, sub_dt);
         }
     }
@@ -89,6 +92,29 @@ impl Solver {
             }
         }
     }
+    fn solve_collision_uniform_grid(&mut self, objects: &mut Vec<VerletObject>){
+        for (id, object) in objects.iter().enumerate() {
+            let x = object.position_current.x - object.radius;
+            let y = object.position_current.y - object.radius;
+            self.uniform_grid.insert(uniform_grid::Aabb::new(id, x, y, object.radius * 2., object
+                .radius * 2.), id);
+        }
+        let pairs = self.uniform_grid.get_all_collisions();
+        //println!("{:?}", pairs);
+
+        for pair in pairs {
+            let collision_axis = objects[pair.0].position_current - objects[pair.1].position_current;
+            let dist = collision_axis.distance(Vec2::new(0., 0.));
+            if dist < objects[pair.0].radius + objects[pair.1].radius {
+                let n = collision_axis / dist;
+                let delta = objects[pair.0].radius + objects[pair.1].radius - dist;
+                objects[pair.0].position_current += 0.5 * delta * n;
+                objects[pair.1].position_current -= 0.5 * delta * n;
+            }
+        }
+        self.uniform_grid.clear();
+    }
+
     fn solve_collision_bruteforce(objects: &mut Vec<VerletObject>) {
         for ia in 0..objects.len() {
             let (left, right) = objects.split_at_mut(ia);
