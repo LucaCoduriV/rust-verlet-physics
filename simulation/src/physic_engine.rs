@@ -51,9 +51,9 @@ impl Solver {
     pub fn new() -> Self {
         Self {
             gravity: Vec2::new(0., 1.),
-            sub_steps: 10,
+            sub_steps: 8,
             frame_dt: 1. / 60.,
-            uniform_grid: uniform_grid::UniformGrid::new(1000., 1000., 15, 15)
+            uniform_grid: uniform_grid::UniformGrid::new(1000., 1000., 200, 200)
         }
     }
 
