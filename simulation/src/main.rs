@@ -6,14 +6,15 @@ use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 use sdl2::event::Event;
 use sdl2::EventPump;
+use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
-use sdl2::rect::Rect;
+use sdl2::rect::{Point, Rect};
 use sdl2::render::{Texture, TextureCreator, WindowCanvas};
 use sdl2::ttf::Font;
 use sdl2::video::WindowContext;
 use physic_engine::{Solver, Vec2, VerletObject};
-use crate::drawing_functions::DrawBasicShapes;
+use crate::drawing_functions::{DrawBasicShapes, pixelize_circle};
 
 mod physic_engine;
 mod drawing_functions;
@@ -22,7 +23,8 @@ const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
 const MAX_ANGLE: f32 = 2.;
 const OBJECT_SPAWN_SPEED: f32 = 500.;
-const MAX_OBJECT: usize = 2250;
+const MAX_OBJECT: usize = 10000;
+const CIRCLE_RADIUS:f32 = 5.;
 
 pub fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
@@ -132,7 +134,7 @@ fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors:
             let color = colors[objects.len()];
             let mut object = VerletObject::new(
                 Vec2::new(WIDTH as f32 / 3., HEIGHT as f32 / 10.),
-                10.,
+                CIRCLE_RADIUS,
                 (color.0, color.1, color.2),
             );
             solver.set_object_velocity(
@@ -145,7 +147,7 @@ fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors:
             angle_counter += 0.1;
             let color = colors[objects.len()];
             let mut object = VerletObject::new(
-                Vec2::new(700., HEIGHT as f32 / 10.), 10.,
+                Vec2::new(700., HEIGHT as f32 / 10.), CIRCLE_RADIUS,
                 (color.0, color.1, color.2),
             );
             solver.set_object_velocity(
@@ -165,12 +167,15 @@ fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors:
             .unwrap();
         //solver.draw(canvas)?;
         for (_, object) in (&objects).iter().enumerate() {
-            canvas.set_draw_color(Color::RGB(object.color.0, object.color.1, object.color.2));
-            canvas.fill_circle(
-                object.position_current.x as i32,
-                object.position_current.y as i32,
-                object.radius as i32,
-            )?;
+            //canvas.set_draw_color(Color::RGB(object.color.0, object.color.1, object.color.2));
+            canvas.filled_circle(object.position_current.x as i16,
+                                 object.position_current.y as i16,
+                                 object.radius as i16, Color::RGB(object.color.0, object.color.1, object.color.2))?;
+            // canvas.fill_circlev2(
+            //     object.position_current.x as i32,
+            //     object.position_current.y as i32,
+            //     object.radius as i32,
+            // )?;
         }
         let text = format!("number of object: {}", objects.len());
         let text2 = format!("frametime: {}ms", delta_time.as_millis());
