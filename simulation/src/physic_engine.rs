@@ -5,7 +5,7 @@ use std::thread::{JoinHandle, Thread};
 use std::time::Duration;
 use cgmath::{MetricSpace, Vector2};
 use quadtree::quad_tree::{Aabb, QuadTree};
-use uniform_grid_simple::clear_uniform_grid_simple;
+use uniform_grid_simple::{clear_uniform_grid_simple, query_cell_and_neighbours};
 use crate::sync_vec::{SyncUniformGridSimple, SyncVec, WorkerData};
 
 pub type Vec2 = Vector2<f32>;
@@ -79,17 +79,24 @@ impl Solver {
                 let (sender2, recv2) = mpsc::channel::<()>();
                 threads.push(thread::spawn(move || {
                     let thread_id = i;
+                    println!("THREAD SPAWNED: {thread_id}");
                     loop {
                         let data = recv.recv().unwrap();
                         let objects = unsafe { &mut *data.0 };
-                        let uniform_grid_simple = unsafe { &(*data.1) };
+                        let ref uniform_grid_simple = unsafe { &(*data.1).0 };
+                        let from = thread_id * (NB_CELL / NB_THREAD);
+                        let to = ((thread_id * (NB_CELL / NB_THREAD)) + (NB_CELL / NB_THREAD))
+                            .clamp(0, uniform_grid_simple[i].len());
+                        
+                        for i in 0..uniform_grid_simple.len() {
+                            for j in from..to {
+                                let obj = query_cell_and_neighbours(uniform_grid_simple, i, j,);
 
-                        for i in 0..uniform_grid_simple.0.len() {
-                            for j in (thread_id * NB_CELL)..((thread_id * NB_CELL) + NB_CELL).clamp(0, uniform_grid_simple.0[i].len()) {
-                                for o1 in uniform_grid_simple.0[i][j].iter() {
-                                    for o2 in uniform_grid_simple.0[i][j].iter() {
+                                for o1 in obj.iter() {
+                                    for o2 in obj.iter() {
                                         if o1 != o2 {
-                                            let collision_axis = objects[*o1].position_current - objects[*o2].position_current;
+                                            let collision_axis = objects[*o1].position_current -
+                                                objects[*o2].position_current;
                                             let dist = collision_axis.distance(Vec2::new(0., 0.));
                                             if dist < objects[*o1].radius + objects[*o2].radius {
                                                 let n = collision_axis / dist;

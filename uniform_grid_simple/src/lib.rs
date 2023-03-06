@@ -14,11 +14,15 @@ pub fn insert(grid: &mut UniformGridSimple, point: Point, value: usize, cell_siz
     grid[x][y].push(value);
 }
 
-pub fn query_cell_and_neighbours(grid: UniformGridSimple, x: usize, y: usize) -> Vec<usize> {
+pub fn query_cell_and_neighbours(grid: &&UniformGridSimple, y: usize, x: usize) -> Vec<usize> {
     let mut values = Vec::new();
+    let y_min = y.saturating_sub(1);
+    let y_max = (y + 1).clamp(0, grid.capacity() - 1);
+    let x_min = x.saturating_sub(1);
+    let x_max = (x + 1).clamp(0, grid[0].capacity() - 1);
 
-    for i in y.saturating_sub(1)..=x + 1 {
-        for j in x.saturating_sub(1)..=y + 1 {
+    for i in y_min..=y_max {
+        for j in x_min..=x_max {
             values.extend(grid[i][j].iter().cloned());
         }
     }

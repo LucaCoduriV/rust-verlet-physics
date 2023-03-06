@@ -26,7 +26,7 @@ const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
 const MAX_ANGLE: f32 = 2.;
 const OBJECT_SPAWN_SPEED: f32 = 500.;
-const MAX_OBJECT: usize = 2;
+const MAX_OBJECT: usize = 10000;
 const CIRCLE_RADIUS:f32 = 5.;
 
 pub fn main() -> Result<(), String> {
