@@ -1,12 +1,16 @@
-use std::sync::Arc;
+use std::sync::{Arc, mpsc};
+use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
+use std::thread::{JoinHandle, Thread};
 use std::time::Duration;
 use cgmath::{MetricSpace, Vector2};
 use quadtree::quad_tree::{Aabb, QuadTree};
 use uniform_grid_simple::clear_uniform_grid_simple;
-use crate::sync_vec::SyncVec;
+use crate::sync_vec::{SyncUniformGridSimple, SyncVec, WorkerData};
 
 pub type Vec2 = Vector2<f32>;
+
+const NB_THREAD: usize = 4;
 
 pub struct VerletObject {
     pub position_current: Vec2,
@@ -44,12 +48,18 @@ impl VerletObject {
     }
 }
 
+struct ThreadPool {
+    threads: Vec<JoinHandle<()>>,
+    channels: Vec<(Sender<WorkerData>, Receiver<()>)>,
+}
+
 pub struct Solver {
     gravity: Vec2,
     sub_steps: u32,
     frame_dt: f32,
     uniform_grid: uniform_grid::UniformGrid<usize>,
-    uniform_grid_simple: uniform_grid_simple::UniformGridSimple,
+    uniform_grid_simple: SyncUniformGridSimple,
+    thread_pool: ThreadPool,
 }
 
 impl Solver {
@@ -57,13 +67,64 @@ impl Solver {
         const CELL_SIZE: f32 = 5.;
         const WORLD_HEIGHT: f32 = 1000.;
         const WORLD_WIDTH: f32 = 1000.;
+        const NB_CELL: usize = (WORLD_WIDTH / CELL_SIZE) as usize;
+
+        let thread_pool = {
+            let mut threads = Vec::with_capacity(NB_THREAD);
+            let mut channels = Vec::with_capacity(NB_THREAD);
+
+            for i in 0..NB_THREAD {
+                let (sender, recv) =
+                    mpsc::channel::<WorkerData>();
+                let (sender2, recv2) = mpsc::channel::<()>();
+                threads.push(thread::spawn(move || {
+                    let thread_id = i;
+                    loop {
+                        let data = recv.recv().unwrap();
+                        let objects = unsafe { &mut *data.0 };
+                        let uniform_grid_simple = unsafe { &(*data.1) };
+
+                        for i in 0..uniform_grid_simple.0.len() {
+                            for j in (thread_id * NB_CELL)..((thread_id * NB_CELL) + NB_CELL).clamp(0, uniform_grid_simple.0[i].len()) {
+                                for o1 in uniform_grid_simple.0[i][j].iter() {
+                                    for o2 in uniform_grid_simple.0[i][j].iter() {
+                                        if o1 != o2 {
+                                            let collision_axis = objects[*o1].position_current - objects[*o2].position_current;
+                                            let dist = collision_axis.distance(Vec2::new(0., 0.));
+                                            if dist < objects[*o1].radius + objects[*o2].radius {
+                                                let n = collision_axis / dist;
+                                                let delta = objects[*o1].radius + objects[*o2].radius - dist;
+                                                objects[*o1].position_current += 0.5 * delta * n;
+                                                objects[*o2].position_current -= 0.5 * delta * n;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        sender2.send(()).unwrap();
+                    }
+                }));
+                channels.push((sender, recv2));
+            }
+
+
+            ThreadPool {
+                threads,
+                channels,
+            }
+        };
 
         Self {
             gravity: Vec2::new(0., 1.),
             sub_steps: 8,
             frame_dt: 1. / 60.,
             uniform_grid: uniform_grid::UniformGrid::new(1000., 1000., 200, 200),
-            uniform_grid_simple: uniform_grid_simple::new(CELL_SIZE, WORLD_WIDTH, WORLD_HEIGHT)
+            uniform_grid_simple: SyncUniformGridSimple(uniform_grid_simple::new(CELL_SIZE,
+                                                                                WORLD_WIDTH,
+                                                                                WORLD_HEIGHT)),
+            thread_pool,
         }
     }
 
@@ -104,11 +165,10 @@ impl Solver {
     }
 
     fn solve_collision_multithreaded(&mut self, objects: &mut SyncVec) {
-        const NB_THREAD: usize = 4;
         const CELL_SIZE: f32 = 5.;
         const WORLD_HEIGHT: f32 = 1000.;
         const WORLD_WIDTH: f32 = 1000.;
-        const NB_CELL:usize = (WORLD_WIDTH / CELL_SIZE) as usize;
+        const NB_CELL: usize = (WORLD_WIDTH / CELL_SIZE) as usize;
 
         clear_uniform_grid_simple(&mut self.uniform_grid_simple);
 
@@ -116,26 +176,16 @@ impl Solver {
             uniform_grid_simple::insert(&mut self.uniform_grid_simple, (o.position_current.x, o.position_current.y), i, CELL_SIZE);
         }
         for t_nb in 0..NB_THREAD {
-            thread::scope(|_| {
-                for i in 0..self.uniform_grid_simple.len() {
-                    for j in (t_nb * NB_CELL)..((t_nb * NB_CELL) + NB_CELL).clamp(0, self.uniform_grid_simple[i].len()) {
-                        for o1 in self.uniform_grid_simple[i][j].iter(){
-                            for o2 in self.uniform_grid_simple[i][j].iter(){
-                                if o1 != o2 {
-                                    let collision_axis = objects[*o1].position_current - objects[*o2].position_current;
-                                    let dist = collision_axis.distance(Vec2::new(0., 0.));
-                                    if dist < objects[*o1].radius + objects[*o2].radius {
-                                        let n = collision_axis / dist;
-                                        let delta = objects[*o1].radius + objects[*o2].radius - dist;
-                                        objects[*o1].position_current += 0.5 * delta * n;
-                                        objects[*o2].position_current -= 0.5 * delta * n;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+            self.thread_pool.channels[t_nb].0.send(
+                WorkerData(
+                    objects as *mut SyncVec,
+                    &self.uniform_grid_simple as *const SyncUniformGridSimple,
+                )
+            ).unwrap();
+        }
+
+        for (_, recv) in &self.thread_pool.channels {
+            recv.recv().unwrap();
         }
     }
 
