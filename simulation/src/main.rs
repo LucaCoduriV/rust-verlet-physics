@@ -16,7 +16,7 @@ use sdl2::render::{Texture, TextureCreator, WindowCanvas};
 use sdl2::ttf::Font;
 use sdl2::video::WindowContext;
 use physic_engine::{Solver, Vec2, VerletObject};
-use crate::drawing_functions::{DrawBasicShapes};
+use crate::drawing_functions::{DrawBasicShapes, pixelize_circle};
 use crate::sync_vec::SyncVec;
 
 mod physic_engine;
@@ -127,8 +127,8 @@ fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors:
             }
         }
 
-        canvas.set_draw_color(SdlColor::RGB(255, 255, 255));
-        canvas.clear();
+        // canvas.set_draw_color(SdlColor::RGB(255, 255, 255));
+        // canvas.clear();
         std::thread::sleep(Duration::saturating_sub(
             Duration::from_micros(16333),
             delta_time,
@@ -185,23 +185,29 @@ fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors:
         }
 
         solver.update(&mut objects);
-        canvas.set_draw_color(SdlColor::RGB(0, 0, 0));
-        canvas
-            .fill_circle((WIDTH / 2) as i32, (HEIGHT / 2) as i32, 500)
-            .unwrap();
+        // canvas.set_draw_color(SdlColor::RGB(0, 0, 0));
+        // canvas
+        //     .fill_circle((WIDTH / 2) as i32, (HEIGHT / 2) as i32, 500)
+        //     .unwrap();
         for (_, object) in (&objects).iter().enumerate() {
-            //canvas.set_draw_color(Color::RGB(object.color.0, object.color.1, object.color.2));
-            canvas.filled_circle(object.position_current.x as i16,
-                                 object.position_current.y as i16,
-                                 object.radius as i16, SdlColor::RGB(object.color.0, object.color.1, object.color.2))?;
+            // canvas.set_draw_color(SdlColor::RGB(object.color.0, object.color.1, object.color.2));
+            let points = pixelize_circle(Point::new(object.position_current.x as i32,
+                                                    object.position_current.y as i32), object
+                .radius as i32);
+            // canvas.draw_points(points.as_slice());
+
+            // canvas.filled_circle(object.position_current.x as i16,
+            //                      object.position_current.y as i16,
+            //                      object.radius as i16, SdlColor::RGB(object.color.0, object.color.1, object.color.2))?;
         }
         let text = format!("number of object: {}", objects.len());
         let text2 = format!("frametime: {}ms", delta_time.as_millis());
+        println!("{}",  text2);
         let texture = create_text_texture(&font, &texture_creator, text.as_str())?;
         let texture2 = create_text_texture(&font, &texture_creator, text2.as_str())?;
-        canvas.copy(&texture, None, Some(Rect::new(0, 0, (text.len() * 7) as u32, 30)))?;
-        canvas.copy(&texture2, None, Some(Rect::new(0, 25, (text2.len() * 7) as u32, 30)))?;
-        canvas.present();
+        // canvas.copy(&texture, None, Some(Rect::new(0, 0, (text.len() * 7) as u32, 30)))?;
+        // canvas.copy(&texture2, None, Some(Rect::new(0, 25, (text2.len() * 7) as u32, 30)))?;
+        // canvas.present();
     }
 
     Ok(objects)
