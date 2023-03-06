@@ -6,6 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/quadtree/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/simulation/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/uniform_grid/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/uniform_grid_simple/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/quadtree/target" />
       <excludeFolder url="file://$MODULE_DIR$/simulation/target" />

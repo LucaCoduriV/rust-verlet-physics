@@ -1,4 +1,5 @@
 use std::f32::consts::PI;
+use std::sync::mpsc::SyncSender;
 use std::time::{Duration, Instant};
 
 use image::GenericImageView;
@@ -15,15 +16,17 @@ use sdl2::ttf::Font;
 use sdl2::video::WindowContext;
 use physic_engine::{Solver, Vec2, VerletObject};
 use crate::drawing_functions::{DrawBasicShapes, pixelize_circle};
+use crate::sync_vec::SyncVec;
 
 mod physic_engine;
 mod drawing_functions;
+mod sync_vec;
 
 const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
 const MAX_ANGLE: f32 = 2.;
 const OBJECT_SPAWN_SPEED: f32 = 500.;
-const MAX_OBJECT: usize = 10000;
+const MAX_OBJECT: usize = 2;
 const CIRCLE_RADIUS:f32 = 5.;
 
 pub fn main() -> Result<(), String> {
@@ -54,29 +57,29 @@ pub fn main() -> Result<(), String> {
     let objects = run_simulation(&mut canvas, &mut event_pump, &colors)?;
 
     // set objects color from image
-    let img = image::open("./planete.webp").unwrap();
-    let mut colors = vec![];
-    for object in objects.iter() {
-        let pixel = img.get_pixel(
-            object.position_current.x as u32,
-            object.position_current.y as u32,
-        );
-        colors.push((pixel.0[0], pixel.0[1], pixel.0[2]));
-    }
-
-    // run second simulation with image colors
-    run_simulation(&mut canvas, &mut event_pump, colors.as_slice())?;
-
-    std::thread::sleep(Duration::new(10, 0));
+    // let img = image::open("./planete.webp").unwrap();
+    // let mut colors = vec![];
+    // for object in objects.iter() {
+    //     let pixel = img.get_pixel(
+    //         object.position_current.x as u32,
+    //         object.position_current.y as u32,
+    //     );
+    //     colors.push((pixel.0[0], pixel.0[1], pixel.0[2]));
+    // }
+    //
+    // // run second simulation with image colors
+    // run_simulation(&mut canvas, &mut event_pump, colors.as_slice())?;
+    //
+    // std::thread::sleep(Duration::new(10, 0));
     Ok(())
 }
 
-fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors: &[(u8, u8, u8)]) -> Result<Vec<VerletObject>, String> {
+fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors: &[(u8, u8, u8)]) -> Result<SyncVec, String> {
     let mut last_time = Instant::now();
     let mut nb_update: u32 = 0;
     let mut angle_counter: f32 = 0.;
 
-    let mut objects = Vec::with_capacity(MAX_OBJECT);
+    let mut objects = sync_vec::SyncVec::new(Vec::with_capacity(MAX_OBJECT));
     let mut solver = Solver::new();
 
     // Load a font
@@ -106,9 +109,9 @@ fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors:
         let delta_time = current_time.duration_since(last_time);
         last_time = current_time;
 
-        if objects.len() >= MAX_OBJECT {
-            break 'running;
-        }
+        // if objects.len() >= MAX_OBJECT {
+        //     break 'running;
+        // }
 
         for event in event_pump.poll_iter() {
             match event {
@@ -165,17 +168,11 @@ fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors:
         canvas
             .fill_circle((WIDTH / 2) as i32, (HEIGHT / 2) as i32, 500)
             .unwrap();
-        //solver.draw(canvas)?;
         for (_, object) in (&objects).iter().enumerate() {
             //canvas.set_draw_color(Color::RGB(object.color.0, object.color.1, object.color.2));
             canvas.filled_circle(object.position_current.x as i16,
                                  object.position_current.y as i16,
                                  object.radius as i16, Color::RGB(object.color.0, object.color.1, object.color.2))?;
-            // canvas.fill_circlev2(
-            //     object.position_current.x as i32,
-            //     object.position_current.y as i32,
-            //     object.radius as i32,
-            // )?;
         }
         let text = format!("number of object: {}", objects.len());
         let text2 = format!("frametime: {}ms", delta_time.as_millis());
@@ -184,7 +181,6 @@ fn run_simulation(canvas: &mut WindowCanvas, event_pump: &mut EventPump, colors:
         canvas.copy(&texture, None, Some(Rect::new(0, 0, (text.len() * 7) as u32, 30)))?;
         canvas.copy(&texture2, None, Some(Rect::new(0, 25, (text2.len() * 7) as u32, 30)))?;
         canvas.present();
-        // std::thread::sleep(Duration::from_millis(200));
     }
 
     Ok(objects)

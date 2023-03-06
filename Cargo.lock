@@ -719,6 +719,7 @@ dependencies = [
  "rand",
  "sdl2",
  "uniform_grid",
+ "uniform_grid_simple",
 ]
 
 [[package]]
@@ -883,6 +884,10 @@ version = "0.1.0"
 dependencies = [
  "cgmath",
 ]
+
+[[package]]
+name = "uniform_grid_simple"
+version = "0.1.0"
 
 [[package]]
 name = "version-compare"

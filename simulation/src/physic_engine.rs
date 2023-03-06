@@ -1,6 +1,10 @@
+use std::sync::Arc;
+use std::thread;
 use std::time::Duration;
 use cgmath::{MetricSpace, Vector2};
 use quadtree::quad_tree::{Aabb, QuadTree};
+use uniform_grid_simple::clear_uniform_grid_simple;
+use crate::sync_vec::SyncVec;
 
 pub type Vec2 = Vector2<f32>;
 
@@ -44,25 +48,31 @@ pub struct Solver {
     gravity: Vec2,
     sub_steps: u32,
     frame_dt: f32,
-    uniform_grid: uniform_grid::UniformGrid<usize>
+    uniform_grid: uniform_grid::UniformGrid<usize>,
+    uniform_grid_simple: uniform_grid_simple::UniformGridSimple,
 }
 
 impl Solver {
     pub fn new() -> Self {
+        const CELL_SIZE: f32 = 5.;
+        const WORLD_HEIGHT: f32 = 1000.;
+        const WORLD_WIDTH: f32 = 1000.;
+
         Self {
             gravity: Vec2::new(0., 1.),
             sub_steps: 8,
             frame_dt: 1. / 60.,
-            uniform_grid: uniform_grid::UniformGrid::new(1000., 1000., 200, 200)
+            uniform_grid: uniform_grid::UniformGrid::new(1000., 1000., 200, 200),
+            uniform_grid_simple: uniform_grid_simple::new(CELL_SIZE, WORLD_WIDTH, WORLD_HEIGHT)
         }
     }
 
-    pub fn update(&mut self, objects: &mut Vec<VerletObject>) {
+    pub fn update(&mut self, objects: &mut SyncVec) {
         let sub_dt = self.frame_dt / self.sub_steps as f32;
         for _ in 0..self.sub_steps {
             Self::apply_gravity(objects);
             Self::apply_constraint(objects);
-            self.solve_collision_uniform_grid(objects);
+            self.solve_collision_multithreaded(objects);
             Self::update_position(objects, sub_dt);
         }
     }
@@ -92,7 +102,44 @@ impl Solver {
             }
         }
     }
-    fn solve_collision_uniform_grid(&mut self, objects: &mut Vec<VerletObject>){
+
+    fn solve_collision_multithreaded(&mut self, objects: &mut SyncVec) {
+        const NB_THREAD: usize = 4;
+        const CELL_SIZE: f32 = 5.;
+        const WORLD_HEIGHT: f32 = 1000.;
+        const WORLD_WIDTH: f32 = 1000.;
+        const NB_CELL:usize = (WORLD_WIDTH / CELL_SIZE) as usize;
+
+        clear_uniform_grid_simple(&mut self.uniform_grid_simple);
+
+        for (i, o) in objects.iter().enumerate() {
+            uniform_grid_simple::insert(&mut self.uniform_grid_simple, (o.position_current.x, o.position_current.y), i, CELL_SIZE);
+        }
+        for t_nb in 0..NB_THREAD {
+            thread::scope(|_| {
+                for i in 0..self.uniform_grid_simple.len() {
+                    for j in (t_nb * NB_CELL)..((t_nb * NB_CELL) + NB_CELL).clamp(0, self.uniform_grid_simple[i].len()) {
+                        for o1 in self.uniform_grid_simple[i][j].iter(){
+                            for o2 in self.uniform_grid_simple[i][j].iter(){
+                                if o1 != o2 {
+                                    let collision_axis = objects[*o1].position_current - objects[*o2].position_current;
+                                    let dist = collision_axis.distance(Vec2::new(0., 0.));
+                                    if dist < objects[*o1].radius + objects[*o2].radius {
+                                        let n = collision_axis / dist;
+                                        let delta = objects[*o1].radius + objects[*o2].radius - dist;
+                                        objects[*o1].position_current += 0.5 * delta * n;
+                                        objects[*o2].position_current -= 0.5 * delta * n;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    fn solve_collision_uniform_grid(&mut self, objects: &mut Vec<VerletObject>) {
         for (id, object) in objects.iter().enumerate() {
             let x = object.position_current.x - object.radius;
             let y = object.position_current.y - object.radius;
@@ -131,8 +178,8 @@ impl Solver {
             }
         }
     }
-    fn solve_collision_quadtree(& mut self, objects: &mut Vec<VerletObject>) {
-        const RESPONSE_COEF:f32 = 0.75;
+    fn solve_collision_quadtree(&mut self, objects: &mut Vec<VerletObject>) {
+        const RESPONSE_COEF: f32 = 0.75;
 
         let mut quad_tree = QuadTree::with_store_size(Aabb::new(0, 0., 0., 1000., 1000.), 10, objects.len());
 
@@ -150,13 +197,13 @@ impl Solver {
             let collision_axis = Vec2::new(a.center().0, a.center().1)
                 - Vec2::new(b.center().0, b.center().1);
             let dist = collision_axis.distance(Vec2::new(0., 0.));
-            let min_dist:f32 = a.width / 2. + b.width / 2.;
+            let min_dist: f32 = a.width / 2. + b.width / 2.;
 
             if dist < min_dist {
                 let n = collision_axis / dist;
 
-                let mass_ratio_1:f32 = (a.width / 2.) / min_dist;
-                let mass_ratio_2:f32 = (b.width / 2.) / min_dist;
+                let mass_ratio_1: f32 = (a.width / 2.) / min_dist;
+                let mass_ratio_2: f32 = (b.width / 2.) / min_dist;
 
                 let delta = 0.5 * RESPONSE_COEF * (dist - min_dist);
                 objects[a.id].position_current -= n * (mass_ratio_2 * delta);
