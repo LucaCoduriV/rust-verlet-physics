@@ -13,3 +13,4 @@ image = "0.24.5"
 quadtree = { path = "../quadtree" }
 uniform_grid = { path = "../uniform_grid" }
 uniform_grid_simple = { path = "../uniform_grid_simple" }
+colors-transform = "0.2.11"

@@ -10,7 +10,7 @@ use crate::sync_vec::{SyncUniformGridSimple, SyncVec, WorkerData};
 
 pub type Vec2 = Vector2<f32>;
 
-const NB_THREAD: usize = 4;
+const NB_THREAD: usize = 8;
 
 pub struct VerletObject {
     pub position_current: Vec2,
@@ -86,14 +86,14 @@ impl Solver {
                         let ref uniform_grid_simple = unsafe { &(*data.1).0 };
                         let from = thread_id * (NB_CELL / NB_THREAD);
                         let to = ((thread_id * (NB_CELL / NB_THREAD)) + (NB_CELL / NB_THREAD))
-                            .clamp(0, uniform_grid_simple[i].len());
-                        
-                        for i in 0..uniform_grid_simple.len() {
-                            for j in from..to {
-                                let obj = query_cell_and_neighbours(uniform_grid_simple, i, j,);
+                            .clamp(0, NB_CELL);
 
-                                for o1 in obj.iter() {
-                                    for o2 in obj.iter() {
+                        for x in from..to {
+                            for y in 0..uniform_grid_simple.len() {
+                                let others = query_cell_and_neighbours(uniform_grid_simple, x, y);
+
+                                for o1 in &others {
+                                    for o2 in &others {
                                         if o1 != o2 {
                                             let collision_axis = objects[*o1].position_current -
                                                 objects[*o2].position_current;
@@ -173,9 +173,6 @@ impl Solver {
 
     fn solve_collision_multithreaded(&mut self, objects: &mut SyncVec) {
         const CELL_SIZE: f32 = 5.;
-        const WORLD_HEIGHT: f32 = 1000.;
-        const WORLD_WIDTH: f32 = 1000.;
-        const NB_CELL: usize = (WORLD_WIDTH / CELL_SIZE) as usize;
 
         clear_uniform_grid_simple(&mut self.uniform_grid_simple);
 
