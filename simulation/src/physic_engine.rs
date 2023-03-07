@@ -59,7 +59,7 @@ impl Solver {
     pub fn new(cell_size:f32, world_height:f32, world_width:f32) -> Self {
 
         Self {
-            gravity: Vec2::new(0., 1.),
+            gravity: Vec2::new(0., 1000.),
             sub_steps: 8,
             frame_dt: 1. / 60.,
             uniform_grid_simple: SyncUniformGridSimple(uniform_grid_simple::new(cell_size,
@@ -134,7 +134,7 @@ impl Solver {
                 .clamp(0, NB_CELL);
 
             for x in from..to {
-                for y in 0..uniform_grid_simple.len() {
+                for y in 0..uniform_grid_simple.get_height() {
                     let others = query_cell_and_neighbours(uniform_grid_simple, x, y);
 
                     // TODO c'est faux ce que je fais ici mais ça marche quand même,

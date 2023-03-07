@@ -901,6 +901,9 @@ dependencies = [
 [[package]]
 name = "uniform_grid_simple"
 version = "0.1.0"
+dependencies = [
+ "fast_2d_array",
+]
 
 [[package]]
 name = "version-compare"

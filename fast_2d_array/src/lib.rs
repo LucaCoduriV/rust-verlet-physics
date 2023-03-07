@@ -1,35 +1,39 @@
-use std::marker::PhantomData;
-
-struct Array2D<'a, T: Default> {
+pub struct Array2D<T: Default> {
     height: usize,
     width: usize,
-    data: Vec<Option<T>>,
-    phantom_data: PhantomData<&'a T>,
+    data: Vec<T>,
 }
 
-impl<'a, T: Default> Array2D<'a, T>
+impl<T: Default> Array2D<T>
     where T: Default + Clone {
     pub fn new(height: usize, width: usize) -> Self {
-        let data = vec![None; height * width];
+        let data = vec![T::default(); height * width];
 
         Self {
             data,
-            phantom_data: PhantomData::default(),
             height,
             width,
         }
     }
 
     pub fn insert(&mut self, data:T, x:usize, y:usize){
-        self.data[x + y * self.width] = Some(data);
+        self.data[x + y * self.width] = data;
     }
 
-    pub fn get(&'a self, x: usize, y: usize) -> &'a T {
-        self.data[x + y * self.width].as_ref().unwrap()
+    pub fn get(&self, x: usize, y: usize) -> &T {
+        &self.data[x + y * self.width]
     }
 
-    pub fn try_get(&'a self, x: usize, y: usize) -> Option<&'a T> {
-        self.data[x + y * self.width].as_ref()
+    pub fn get_mut(&mut self, x: usize, y: usize) -> &mut T {
+        &mut self.data[x + y * self.width]
+    }
+
+    pub fn try_get_mut(&mut self, x: usize, y: usize) -> Option<&mut T> {
+        Some(&mut self.data[x + y * self.width])
+    }
+
+    pub fn try_get(&self, x: usize, y: usize) -> Option<&T> {
+        Some(&self.data[x + y * self.width])
     }
 
     pub fn get_width(&self) -> usize {
