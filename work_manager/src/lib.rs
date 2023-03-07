@@ -1,9 +1,9 @@
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc};
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use std::thread::JoinHandle;
 
-type JobId = Box<dyn FnOnce(usize) + Clone + Send + 'static>;
+type JobId = Box<dyn FnOnce(usize) + Send + 'static>;
 
 pub struct WorkManager
 {
@@ -22,16 +22,20 @@ impl WorkManager {
 
 
         Self {
-            thread_pool: thread_pool,
+            thread_pool,
             receiver,
         }
     }
 
-    pub fn execute_on_all(&self, work: JobId) {
+    pub fn execute_on_all<F>(&self, work: F) where
+        F: Fn(usize) + Send + Sync + 'static
+    {
+        let work = Arc::new(work);
         for worker in self.thread_pool.iter() {
-            worker.execute(Box::new(|id| {
-                work();
-            }));
+            let f = work.clone();
+            worker.execute(move |id| {
+                f(id);
+            });
         }
     }
 
@@ -43,7 +47,17 @@ impl WorkManager {
     }
 }
 
-enum WorkerMessage{
+impl Drop for WorkManager{
+    fn drop(&mut self) {
+        for _ in 0..self.thread_pool.len() {
+            let worker = self.thread_pool.remove(self.thread_pool.len() - 1);
+            worker.sender.send(WorkerMessage::Terminate).unwrap();
+            worker.thread_handle.join().unwrap();
+        }
+    }
+}
+
+enum WorkerMessage {
     NewJob(JobId),
     Terminate,
 }
@@ -75,13 +89,14 @@ impl Worker {
                     break;
                 }
             }
-            sender.send(0).unwrap();
+            sender.send(worker_id).unwrap();
         }
     }
 
-    fn execute(&self, job: JobId)
+    fn execute<F>(&self, job: F) where
+        F: FnOnce(usize) + Send + 'static
     {
-        self.sender.send(WorkerMessage::NewJob(job)).unwrap();
+        self.sender.send(WorkerMessage::NewJob(Box::new(job))).unwrap();
     }
 }
 
@@ -95,6 +110,8 @@ mod test {
         let wm = WorkManager::new(NB_THREAD);
         wm.execute_on_all(|id| {
             println!("Thread: {}", id);
-        })
+        });
+
+        wm.wait_all_finish();
     }
 }
