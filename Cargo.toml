@@ -5,4 +5,5 @@ members = [
     "quadtree",
     "uniform_grid",
     "uniform_grid_simple",
+    "work_manager",
 ]
