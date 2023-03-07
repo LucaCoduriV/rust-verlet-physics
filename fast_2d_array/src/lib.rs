@@ -20,6 +20,10 @@ impl<T: Default> Array2D<T>
         self.data[x + y * self.width] = data;
     }
 
+    pub fn try_get_mut_as_1d(&mut self, i:usize) -> Option<&mut T>{
+        Some(&mut self.data[i])
+    }
+
     pub fn get(&self, x: usize, y: usize) -> &T {
         &self.data[x + y * self.width]
     }
@@ -42,6 +46,10 @@ impl<T: Default> Array2D<T>
 
     pub fn get_height(&self) -> usize {
         self.height
+    }
+
+    pub fn total_size(&self) -> usize {
+        self.width * self.height
     }
 }
 

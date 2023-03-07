@@ -34,12 +34,10 @@ pub fn query_cell_and_neighbours(grid: &UniformGridSimple, x: usize, y: usize) -
 }
 
 pub fn clear_uniform_grid_simple(grid:&mut UniformGridSimple){
-    for i in 0..grid.get_height() {
-        for j in 0..grid.get_width() {
-            if let Some(v) = grid.try_get_mut(j, i){
+    for i in 0..grid.total_size() {
+            if let Some(v) = grid.try_get_mut_as_1d(i){
                 v.clear();
             }
-        }
     }
 }
 
