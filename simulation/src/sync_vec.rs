@@ -37,7 +37,7 @@ impl DerefMut for SyncUniformGridSimple {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct WorkerData(pub *mut SyncVec,
                       pub *const SyncUniformGridSimple);
 

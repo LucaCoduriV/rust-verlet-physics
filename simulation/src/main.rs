@@ -82,7 +82,7 @@ fn run_simulation(
     let mut nb_update: u32 = 0;
 
     let mut objects = SyncVec::new(Vec::with_capacity(MAX_OBJECT));
-    let mut solver = Solver::new();
+    let mut solver = Solver::new(5., HEIGHT as f32, WIDTH as f32);
 
     // Load a font
     let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string())?;

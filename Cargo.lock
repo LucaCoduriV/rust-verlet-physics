@@ -275,6 +275,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "fast_2d_array"
+version = "0.1.0"
+
+[[package]]
 name = "flate2"
 version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -721,12 +725,14 @@ version = "0.1.0"
 dependencies = [
  "cgmath",
  "colors-transform",
+ "fast_2d_array",
  "image",
  "quadtree",
  "rand",
  "sdl2",
  "uniform_grid",
  "uniform_grid_simple",
+ "work_manager",
 ]
 
 [[package]]

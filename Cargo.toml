@@ -6,4 +6,5 @@ members = [
     "uniform_grid",
     "uniform_grid_simple",
     "work_manager",
+    "fast_2d_array",
 ]

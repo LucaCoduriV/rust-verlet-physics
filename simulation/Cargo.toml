@@ -13,4 +13,6 @@ image = "0.24.5"
 quadtree = { path = "../quadtree" }
 uniform_grid = { path = "../uniform_grid" }
 uniform_grid_simple = { path = "../uniform_grid_simple" }
+work_manager = { path = "../work_manager" }
+fast_2d_array = { path = "../fast_2d_array" }
 colors-transform = "0.2.11"

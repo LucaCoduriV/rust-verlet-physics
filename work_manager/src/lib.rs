@@ -3,15 +3,15 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use std::thread::JoinHandle;
 
-type JobId = Box<dyn FnOnce(usize) + Send + 'static>;
+pub type JobId = Box<dyn FnOnce(usize) + Send + 'static>;
 
-pub struct WorkManager
+pub struct WorkerPool
 {
     thread_pool: Vec<Worker>,
     receiver: Receiver<usize>,
 }
 
-impl WorkManager {
+impl WorkerPool {
     pub fn new(number_worker: usize) -> Self {
         let (sender, receiver) = mpsc::channel();
         let mut thread_pool = Vec::with_capacity(number_worker);
@@ -41,13 +41,12 @@ impl WorkManager {
 
     pub fn wait_all_finish(&self) {
         for _ in 0..self.thread_pool.len() {
-            let worker_id = self.receiver.recv().unwrap();
-            println!("{worker_id} finished !");
+            let _ = self.receiver.recv().unwrap();
         }
     }
 }
 
-impl Drop for WorkManager{
+impl Drop for WorkerPool {
     fn drop(&mut self) {
         for _ in 0..self.thread_pool.len() {
             let worker = self.thread_pool.remove(self.thread_pool.len() - 1);
@@ -82,7 +81,7 @@ impl Worker {
         loop {
             let message = recv.recv().unwrap();
             match message {
-                WorkerMessage::NewJob(job) => {
+                WorkerMessage::NewJob(mut job) => {
                     job(worker_id);
                 }
                 WorkerMessage::Terminate => {
@@ -102,14 +101,15 @@ impl Worker {
 
 #[cfg(test)]
 mod test {
-    use crate::WorkManager;
+    use crate::WorkerPool;
 
     #[test]
     fn execute_println_4_thread() {
         const NB_THREAD: usize = 4;
-        let wm = WorkManager::new(NB_THREAD);
-        wm.execute_on_all(|id| {
-            println!("Thread: {}", id);
+        let wm = WorkerPool::new(NB_THREAD);
+        let coucou = String::from("coucou");
+        wm.execute_on_all(move |id| {
+            println!("Thread: {}, {}", id, coucou);
         });
 
         wm.wait_all_finish();
