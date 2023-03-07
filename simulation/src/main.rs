@@ -102,6 +102,7 @@ fn run_simulation(
             .create_texture_from_surface(&surface)
             .map_err(|e| e.to_string())?;
 
+
         Ok(texture)
     }
     let mut color_counter = 0.;

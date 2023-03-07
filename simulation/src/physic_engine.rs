@@ -92,6 +92,8 @@ impl Solver {
                             for y in 0..uniform_grid_simple.len() {
                                 let others = query_cell_and_neighbours(uniform_grid_simple, x, y);
 
+                                // TODO c'est faux ce que je fais ici mais ça marche quand même,
+                                //      mais surrement moins bien
                                 for o1 in &others {
                                     for o2 in &others {
                                         if o1 != o2 {
