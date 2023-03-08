@@ -9,43 +9,50 @@ pub fn new(cell_size: f32, world_width: f32, world_height: f32) -> UniformGridSi
     Array2D::new(height, width)
 }
 
-pub fn insert(grid: &mut UniformGridSimple, point: Point, value: usize, cell_size:f32) {
+pub fn insert(grid: &mut UniformGridSimple, point: Point, value: usize, cell_size: f32) {
     let (x, y) = world_to_grid(&point, cell_size);
-    let cell_center = ((x as f32 * cell_size) - (cell_size/2.), (y as f32 * cell_size) - (cell_size/2.));
+    let cell_center = ((x as f32 * cell_size) + (cell_size / 2.), (y as f32 * cell_size) + (cell_size / 2.));
 
     if point.0 > cell_center.0 {
-        if let Some(v) = grid.try_get_mut(x + 1, y){
+        if let Some(v) = grid.try_get_mut(x + 1, y) {
             v.push(value);
         }
 
         if point.1 > cell_center.1 {
-            if let Some(v) = grid.try_get_mut(x + 1, y + 1){
+            if let Some(v) = grid.try_get_mut(x + 1, y + 1) {
                 v.push(value);
             }
         }
     }
 
     if point.0 < cell_center.0 {
-        if let Some(v) = grid.try_get_mut(x - 1, y){
-            v.push(value);
+        if let Some(x) = x.checked_sub(1) {
+            if let Some(v) = grid.try_get_mut(x, y) {
+                v.push(value);
+            }
         }
 
+
         if point.1 < cell_center.1 {
-            if let Some(v) = grid.try_get_mut(x - 1, y - 1){
-                v.push(value);
+            if let (Some(x), Some(y)) = (x.checked_sub(1), y.checked_sub(1)) {
+                if let Some(v) = grid.try_get_mut(x, y) {
+                    v.push(value);
+                }
             }
         }
     }
 
     if point.1 > cell_center.1 {
-        if let Some(v) = grid.try_get_mut(x, y + 1){
+        if let Some(v) = grid.try_get_mut(x, y + 1) {
             v.push(value);
         }
     }
 
     if point.1 < cell_center.1 {
-        if let Some(v) = grid.try_get_mut(x, y - 1){
-            v.push(value);
+        if let Some(y) = y.checked_sub(1) {
+            if let Some(v) = grid.try_get_mut(x, y) {
+                v.push(value);
+            }
         }
     }
 
@@ -59,27 +66,41 @@ fn world_to_grid(point: &Point, cell_size: f32) -> (usize, usize) {
     (x, y)
 }
 
-pub fn query_cell_and_neighbours(grid: &UniformGridSimple, x: usize, y: usize) -> Vec<usize> {
-    let mut values = Vec::new();
-    let y_min = y.saturating_sub(1);
-    let y_max = (y + 1).clamp(0, grid.get_height() - 1);
-    let x_min = x.saturating_sub(1);
-    let x_max = (x + 1).clamp(0, grid.get_width() - 1);
-
-    for y2 in y_min..=y_max {
-        for x2 in x_min..=x_max {
-            if let Some(v) = grid.try_get(x2, y2) {
-                values.extend(v.iter().cloned());
-            }
-        }
-    }
-    values
-}
-
-pub fn clear_uniform_grid_simple(grid:&mut UniformGridSimple){
+pub fn clear_uniform_grid_simple(grid: &mut UniformGridSimple) {
     for i in 0..grid.total_size() {
         grid.get_mut_as_1d(i).clear();
     }
 }
 
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn insertion_test() {
+        const CELL_SIZE: f32 = 10.;
+
+        let mut grid = super::new(CELL_SIZE, 100., 100.);
+
+        insert(&mut grid, (0., 0.), 0, CELL_SIZE);
+        insert(&mut grid, (0., 0.), 1, CELL_SIZE);
+        insert(&mut grid, (0.5, 0.), 2, CELL_SIZE);
+        insert(&mut grid, (0., 0.5), 3, CELL_SIZE);
+        insert(&mut grid, (0.5, 0.5), 4, CELL_SIZE);
+
+        insert(&mut grid, (10., 0.), 5, CELL_SIZE);
+        insert(&mut grid, (0., 10.), 6, CELL_SIZE);
+        insert(&mut grid, (10., 10.), 7, CELL_SIZE);
+        insert(&mut grid, (21., 21.), 8, CELL_SIZE);
+
+        assert!(grid.get(0, 0).contains(&0)
+            && grid.get(0, 0).contains(&1)
+            && grid.get(0, 0).contains(&2)
+            && grid.get(0, 0).contains(&3)
+            && grid.get(0, 0).contains(&4)
+        );
+
+        println!("{}", grid);
+    }
+}
 

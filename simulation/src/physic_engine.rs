@@ -149,7 +149,6 @@ impl Solver {
                     let cell = uniform_grid_simple.get(x, y);
                     for i in 0..cell.len() {
                         for j in (i + 1)..cell.len() {
-                            println!("firsthalf object {:?} and {:?} are colliding", &objects[cell[i]], &objects[cell[j]]);
                             Self::solve_object_to_object_collision(cell[i], cell[j], objects);
                         }
                     }
@@ -185,7 +184,6 @@ impl Solver {
                     let cell = uniform_grid_simple.get(x, y);
                     for i in 0..cell.len() {
                         for j in (i + 1)..cell.len() {
-                            println!("secondhalf object {:?} and {:?} are colliding", &objects[cell[i]], &objects[cell[j]]);
                             Self::solve_object_to_object_collision(cell[i], cell[j], objects);
                         }
                     }
