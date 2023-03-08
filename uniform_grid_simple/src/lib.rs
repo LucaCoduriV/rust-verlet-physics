@@ -83,24 +83,42 @@ mod test {
         let mut grid = super::new(CELL_SIZE, 100., 100.);
 
         insert(&mut grid, (0., 0.), 0, CELL_SIZE);
-        insert(&mut grid, (0., 0.), 1, CELL_SIZE);
-        insert(&mut grid, (0.5, 0.), 2, CELL_SIZE);
-        insert(&mut grid, (0., 0.5), 3, CELL_SIZE);
-        insert(&mut grid, (0.5, 0.5), 4, CELL_SIZE);
+        insert(&mut grid, (10., 0.), 1, CELL_SIZE);
+        insert(&mut grid, (0., 10.), 2, CELL_SIZE);
+        insert(&mut grid, (10., 10.), 3, CELL_SIZE);
+        insert(&mut grid, (21., 21.), 4, CELL_SIZE);
 
-        insert(&mut grid, (10., 0.), 5, CELL_SIZE);
-        insert(&mut grid, (0., 10.), 6, CELL_SIZE);
-        insert(&mut grid, (10., 10.), 7, CELL_SIZE);
-        insert(&mut grid, (21., 21.), 8, CELL_SIZE);
+        println!("");
+        println!("{}", grid);
 
         assert!(grid.get(0, 0).contains(&0)
             && grid.get(0, 0).contains(&1)
             && grid.get(0, 0).contains(&2)
             && grid.get(0, 0).contains(&3)
-            && grid.get(0, 0).contains(&4)
         );
 
-        println!("{}", grid);
+        assert!(grid.get(1, 0).contains(&1)
+            && grid.get(1, 0).contains(&3)
+        );
+
+        assert!(grid.get(0, 1).contains(&2)
+            && grid.get(0, 1).contains(&3)
+        );
+
+        assert!(grid.get(1, 1).contains(&3)
+            && grid.get(1, 1).contains(&4)
+        );
+
+        assert!(grid.get(2, 1).contains(&4));
+
+        assert!(grid.get(1, 2).contains(&4));
+        assert!(grid.get(2, 2).contains(&4));
+
+        clear_uniform_grid_simple(&mut grid);
+
+        for i in 0..grid.total_size() {
+            assert!(grid.get_mut_as_1d(i).is_empty());
+        }
     }
 }
 
