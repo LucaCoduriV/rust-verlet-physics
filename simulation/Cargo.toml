@@ -16,3 +16,4 @@ uniform_grid_simple = { path = "../uniform_grid_simple" }
 work_manager = { path = "../work_manager" }
 fast_2d_array = { path = "../fast_2d_array" }
 colors-transform = "0.2.11"
+stopwatch = "0.0.7"

@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct Array2D<T: Default> {
     height: usize,
     width: usize,
@@ -21,6 +22,9 @@ impl<T: Default> Array2D<T>
     }
 
     pub fn try_get_mut_as_1d(&mut self, i:usize) -> Option<&mut T>{
+        if i > self.height * self.width {
+            return None;
+        }
         Some(&mut self.data[i])
     }
 
@@ -37,10 +41,16 @@ impl<T: Default> Array2D<T>
     }
 
     pub fn try_get_mut(&mut self, x: usize, y: usize) -> Option<&mut T> {
+        if self.is_in_bounds(x,y) {
+            return None;
+        }
         Some(&mut self.data[x + y * self.width])
     }
 
     pub fn try_get(&self, x: usize, y: usize) -> Option<&T> {
+        if self.is_in_bounds(x,y) {
+            return None;
+        }
         Some(&self.data[x + y * self.width])
     }
 
@@ -54,6 +64,10 @@ impl<T: Default> Array2D<T>
 
     pub fn total_size(&self) -> usize {
         self.width * self.height
+    }
+
+    fn is_in_bounds(&self, x: usize, y: usize) -> bool {
+        x < self.width || y < self.height
     }
 }
 

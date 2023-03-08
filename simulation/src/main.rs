@@ -25,7 +25,7 @@ mod sync_vec;
 const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
 const OBJECT_SPAWN_SPEED: f32 = 100.;
-const MAX_OBJECT: usize = 10000;
+const MAX_OBJECT: usize = 2;
 const CIRCLE_RADIUS: f32 = 5.;
 
 pub fn main() -> Result<(), String> {
@@ -56,18 +56,18 @@ pub fn main() -> Result<(), String> {
     let objects = run_simulation(&mut canvas, &mut event_pump, None)?;
 
     // set objects color from image
-    let img = image::open("./planete.webp").unwrap();
-    let mut colors = vec![];
-    for object in objects.iter() {
-        let pixel = img.get_pixel(
-            object.position_current.x as u32,
-            object.position_current.y as u32,
-        );
-        colors.push((pixel.0[0], pixel.0[1], pixel.0[2]));
-    }
-
-    // run second simulation with image colors
-    run_simulation(&mut canvas, &mut event_pump, Some(colors.as_slice()))?;
+    // let img = image::open("./planete.webp").unwrap();
+    // let mut colors = vec![];
+    // for object in objects.iter() {
+    //     let pixel = img.get_pixel(
+    //         object.position_current.x as u32,
+    //         object.position_current.y as u32,
+    //     );
+    //     colors.push((pixel.0[0], pixel.0[1], pixel.0[2]));
+    // }
+    //
+    // // run second simulation with image colors
+    // run_simulation(&mut canvas, &mut event_pump, Some(colors.as_slice()))?;
 
     // std::thread::sleep(Duration::new(10, 0));
     Ok(())
@@ -156,25 +156,25 @@ fn run_simulation(
             );
             objects.push(object);
 
-            let mut object = VerletObject::new(
-                Vec2::new(550., HEIGHT as f32 / 10.), CIRCLE_RADIUS,
-                (color.0, color.1, color.2),
-            );
-            solver.set_object_velocity(
-                &mut object,
-                OBJECT_SPAWN_SPEED * Vec2::new(angle.cos(), angle.sin()),
-            );
-            objects.push(object);
-
-            let mut object = VerletObject::new(
-                Vec2::new(560., HEIGHT as f32 / 10.), CIRCLE_RADIUS,
-                (color.0, color.1, color.2),
-            );
-            solver.set_object_velocity(
-                &mut object,
-                OBJECT_SPAWN_SPEED * Vec2::new(angle.cos(), angle.sin()),
-            );
-            objects.push(object);
+            // let mut object = VerletObject::new(
+            //     Vec2::new(550., HEIGHT as f32 / 10.), CIRCLE_RADIUS,
+            //     (color.0, color.1, color.2),
+            // );
+            // solver.set_object_velocity(
+            //     &mut object,
+            //     OBJECT_SPAWN_SPEED * Vec2::new(angle.cos(), angle.sin()),
+            // );
+            // objects.push(object);
+            //
+            // let mut object = VerletObject::new(
+            //     Vec2::new(560., HEIGHT as f32 / 10.), CIRCLE_RADIUS,
+            //     (color.0, color.1, color.2),
+            // );
+            // solver.set_object_velocity(
+            //     &mut object,
+            //     OBJECT_SPAWN_SPEED * Vec2::new(angle.cos(), angle.sin()),
+            // );
+            // objects.push(object);
 
             nb_update = 0;
         }
@@ -191,10 +191,16 @@ fn run_simulation(
         }
         let text = format!("number of object: {}", objects.len());
         let text2 = format!("frametime: {}ms", delta_time.as_millis());
+        let text3 = format!("Physic time: {}ms", solver.timer.elapsed_ms());
+        let text4 = format!("draw time: {}ms", delta_time.as_millis().saturating_sub(solver.timer.elapsed_ms() as u128));
         let texture = create_text_texture(&font, &texture_creator, text.as_str())?;
         let texture2 = create_text_texture(&font, &texture_creator, text2.as_str())?;
+        let texture3 = create_text_texture(&font, &texture_creator, text3.as_str())?;
+        let texture4 = create_text_texture(&font, &texture_creator, text4.as_str())?;
         canvas.copy(&texture, None, Some(Rect::new(0, 0, (text.len() * 7) as u32, 30)))?;
         canvas.copy(&texture2, None, Some(Rect::new(0, 25, (text2.len() * 7) as u32, 30)))?;
+        canvas.copy(&texture3, None, Some(Rect::new(0, 50, (text2.len() * 7) as u32, 30)))?;
+        canvas.copy(&texture4, None, Some(Rect::new(0, 75, (text2.len() * 7) as u32, 30)))?;
         canvas.present();
     }
 

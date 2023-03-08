@@ -13,37 +13,37 @@ pub fn insert(grid: &mut UniformGridSimple, point: Point, value: usize, cell_siz
     let (x, y) = world_to_grid(&point, cell_size);
     let cell_center = ((x as f32 * cell_size) - (cell_size/2.), (y as f32 * cell_size) - (cell_size/2.));
 
-    if (x as f32) > cell_center.0 {
+    if point.0 > cell_center.0 {
         if let Some(v) = grid.try_get_mut(x + 1, y){
             v.push(value);
         }
 
-        if (y as f32) > cell_center.1 {
+        if point.1 > cell_center.1 {
             if let Some(v) = grid.try_get_mut(x + 1, y + 1){
                 v.push(value);
             }
         }
     }
 
-    if (x as f32) < cell_center.0 {
+    if point.0 < cell_center.0 {
         if let Some(v) = grid.try_get_mut(x - 1, y){
             v.push(value);
         }
 
-        if (y as f32) < cell_center.1 {
+        if point.1 < cell_center.1 {
             if let Some(v) = grid.try_get_mut(x - 1, y - 1){
                 v.push(value);
             }
         }
     }
 
-    if (y as f32) > cell_center.1 {
+    if point.1 > cell_center.1 {
         if let Some(v) = grid.try_get_mut(x, y + 1){
             v.push(value);
         }
     }
 
-    if (y as f32) < cell_center.1 {
+    if point.1 < cell_center.1 {
         if let Some(v) = grid.try_get_mut(x, y - 1){
             v.push(value);
         }

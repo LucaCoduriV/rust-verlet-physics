@@ -17,6 +17,7 @@ unsafe impl Send for SyncVec {}
 
 unsafe impl Sync for SyncVec {}
 
+#[derive(Debug)]
 pub struct SyncUniformGridSimple(pub uniform_grid_simple::UniformGridSimple);
 
 unsafe impl Send for SyncUniformGridSimple {}
