@@ -1,5 +1,5 @@
 use std::f32::consts::PI;
-use std::time::{Instant};
+use std::time::{Duration, Instant};
 use colors_transform::{Color, Hsl};
 
 use image::GenericImageView;
@@ -25,7 +25,7 @@ mod sync_vec;
 const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
 const OBJECT_SPAWN_SPEED: f32 = 100.;
-const MAX_OBJECT: usize = 2;
+const MAX_OBJECT: usize = 9200;
 const CIRCLE_RADIUS: f32 = 5.;
 
 pub fn main() -> Result<(), String> {
@@ -56,20 +56,20 @@ pub fn main() -> Result<(), String> {
     let objects = run_simulation(&mut canvas, &mut event_pump, None)?;
 
     // set objects color from image
-    // let img = image::open("./planete.webp").unwrap();
-    // let mut colors = vec![];
-    // for object in objects.iter() {
-    //     let pixel = img.get_pixel(
-    //         object.position_current.x as u32,
-    //         object.position_current.y as u32,
-    //     );
-    //     colors.push((pixel.0[0], pixel.0[1], pixel.0[2]));
-    // }
-    //
-    // // run second simulation with image colors
-    // run_simulation(&mut canvas, &mut event_pump, Some(colors.as_slice()))?;
+    let img = image::open("./planete.webp").unwrap();
+    let mut colors = vec![];
+    for object in objects.iter() {
+        let pixel = img.get_pixel(
+            object.position_current.x as u32,
+            object.position_current.y as u32,
+        );
+        colors.push((pixel.0[0], pixel.0[1], pixel.0[2]));
+    }
 
-    // std::thread::sleep(Duration::new(10, 0));
+    // run second simulation with image colors
+    run_simulation(&mut canvas, &mut event_pump, Some(colors.as_slice()))?;
+
+    std::thread::sleep(Duration::new(10, 0));
     Ok(())
 }
 
@@ -112,9 +112,9 @@ fn run_simulation(
         let delta_time = current_time.duration_since(last_time);
         last_time = current_time;
 
-        // if objects.len() >= MAX_OBJECT {
-        //     break 'running;
-        // }
+        if objects.len() >= MAX_OBJECT {
+            break 'running;
+        }
 
         for event in event_pump.poll_iter() {
             match event {
@@ -145,36 +145,26 @@ fn run_simulation(
                 color_counter + 1.
             };
 
-            let mut object = VerletObject::new(
-                Vec2::new(540., HEIGHT as f32 / 10.),
-                CIRCLE_RADIUS,
-                (color.0, color.1, color.2),
-            );
-            solver.set_object_velocity(
-                &mut object,
-                OBJECT_SPAWN_SPEED * Vec2::new(angle.cos(), angle.sin()),
-            );
-            objects.push(object);
+            const CANNON_X:f32 = 400.;
+            const CANNON_Y:f32 = 100.;
 
-            // let mut object = VerletObject::new(
-            //     Vec2::new(550., HEIGHT as f32 / 10.), CIRCLE_RADIUS,
-            //     (color.0, color.1, color.2),
-            // );
-            // solver.set_object_velocity(
-            //     &mut object,
-            //     OBJECT_SPAWN_SPEED * Vec2::new(angle.cos(), angle.sin()),
-            // );
-            // objects.push(object);
-            //
-            // let mut object = VerletObject::new(
-            //     Vec2::new(560., HEIGHT as f32 / 10.), CIRCLE_RADIUS,
-            //     (color.0, color.1, color.2),
-            // );
-            // solver.set_object_velocity(
-            //     &mut object,
-            //     OBJECT_SPAWN_SPEED * Vec2::new(angle.cos(), angle.sin()),
-            // );
-            // objects.push(object);
+            let mut build_cannon = |cannon_x: f32, cannon_y: f32| {
+                let mut object = VerletObject::new(
+                    Vec2::new(cannon_x, cannon_y),
+                    CIRCLE_RADIUS,
+                    (color.0, color.1, color.2),
+                );
+                solver.set_object_velocity(
+                    &mut object,
+                    OBJECT_SPAWN_SPEED * Vec2::new(angle.cos(), angle.sin()),
+                );
+                objects.push(object);
+            };
+
+            build_cannon(CANNON_X, CANNON_Y);
+            build_cannon(CANNON_X, CANNON_Y + 10.);
+            build_cannon(CANNON_X, CANNON_Y + 20.);
+            build_cannon(CANNON_X, CANNON_Y + 30.);
 
             nb_update = 0;
         }

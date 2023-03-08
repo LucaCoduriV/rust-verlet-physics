@@ -88,7 +88,7 @@ mod test {
         insert(&mut grid, (10., 10.), 3, CELL_SIZE);
         insert(&mut grid, (21., 21.), 4, CELL_SIZE);
 
-        println!("");
+        println!();
         println!("{}", grid);
 
         assert!(grid.get(0, 0).contains(&0)
