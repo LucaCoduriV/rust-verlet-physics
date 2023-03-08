@@ -24,6 +24,10 @@ impl<T: Default> Array2D<T>
         Some(&mut self.data[i])
     }
 
+    pub fn get_mut_as_1d(&mut self, i:usize) -> &mut T{
+        &mut self.data[i]
+    }
+
     pub fn get(&self, x: usize, y: usize) -> &T {
         &self.data[x + y * self.width]
     }

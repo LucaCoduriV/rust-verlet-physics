@@ -4,16 +4,59 @@ type Point = (f32, f32);
 pub type UniformGridSimple = Array2D<Vec<usize>>;
 
 pub fn new(cell_size: f32, world_width: f32, world_height: f32) -> UniformGridSimple {
-    let x = (world_width / cell_size) as usize;
-    let y = (world_height / cell_size) as usize;
-    Array2D::new(y, x)
+    let width = (world_width / cell_size) as usize;
+    let height = (world_height / cell_size) as usize;
+    Array2D::new(height, width)
 }
 
 pub fn insert(grid: &mut UniformGridSimple, point: Point, value: usize, cell_size:f32) {
+    let (x, y) = world_to_grid(&point, cell_size);
+    let cell_center = ((x as f32 * cell_size) - (cell_size/2.), (y as f32 * cell_size) - (cell_size/2.));
+
+    if (x as f32) > cell_center.0 {
+        if let Some(v) = grid.try_get_mut(x + 1, y){
+            v.push(value);
+        }
+
+        if (y as f32) > cell_center.1 {
+            if let Some(v) = grid.try_get_mut(x + 1, y + 1){
+                v.push(value);
+            }
+        }
+    }
+
+    if (x as f32) < cell_center.0 {
+        if let Some(v) = grid.try_get_mut(x - 1, y){
+            v.push(value);
+        }
+
+        if (y as f32) < cell_center.1 {
+            if let Some(v) = grid.try_get_mut(x - 1, y - 1){
+                v.push(value);
+            }
+        }
+    }
+
+    if (y as f32) > cell_center.1 {
+        if let Some(v) = grid.try_get_mut(x, y + 1){
+            v.push(value);
+        }
+    }
+
+    if (y as f32) < cell_center.1 {
+        if let Some(v) = grid.try_get_mut(x, y - 1){
+            v.push(value);
+        }
+    }
+
+    grid.get_mut(x, y).push(value);
+}
+
+fn world_to_grid(point: &Point, cell_size: f32) -> (usize, usize) {
     let (x, y) = point;
     let x = (x / cell_size) as usize;
     let y = (y / cell_size) as usize;
-    grid.get_mut(x, y).push(value);
+    (x, y)
 }
 
 pub fn query_cell_and_neighbours(grid: &UniformGridSimple, x: usize, y: usize) -> Vec<usize> {
@@ -35,9 +78,7 @@ pub fn query_cell_and_neighbours(grid: &UniformGridSimple, x: usize, y: usize) -
 
 pub fn clear_uniform_grid_simple(grid:&mut UniformGridSimple){
     for i in 0..grid.total_size() {
-            if let Some(v) = grid.try_get_mut_as_1d(i){
-                v.clear();
-            }
+        grid.get_mut_as_1d(i).clear();
     }
 }
 

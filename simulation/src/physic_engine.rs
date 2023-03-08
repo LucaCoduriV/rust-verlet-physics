@@ -65,7 +65,7 @@ impl Solver {
             uniform_grid_simple: SyncUniformGridSimple(uniform_grid_simple::new(cell_size,
                                                                                 world_width,
                                                                                 world_height)),
-            thread_pool: WorkerPool::new(8),
+            thread_pool: WorkerPool::new(NB_THREAD),
             world_height,
             world_width,
             cell_size,
@@ -109,56 +109,91 @@ impl Solver {
     }
 
     fn solve_collision_multithreaded(&mut self, objects: &mut SyncVec) {
-        const CELL_SIZE: f32 = 5.;
-        const WORLD_HEIGHT: f32 = 1000.;
-        const WORLD_WIDTH: f32 = 1000.;
-        const NB_CELL: usize = (WORLD_WIDTH / CELL_SIZE) as usize;
+        let nb_cell: usize = (self.world_width / self.cell_size) as usize;
 
         clear_uniform_grid_simple(&mut self.uniform_grid_simple);
 
         for (i, o) in objects.iter().enumerate() {
-            uniform_grid_simple::insert(&mut self.uniform_grid_simple, (o.position_current.x, o.position_current.y), i, CELL_SIZE);
+            uniform_grid_simple::insert(&mut self.uniform_grid_simple, (o.position_current.x, o.position_current.y), i, self.cell_size);
         }
 
-        let workerdata = WorkerData(
+        let worker_data = WorkerData(
             objects as *mut SyncVec,
             &self.uniform_grid_simple as *const SyncUniformGridSimple,
         );
 
+        // first half
         self.thread_pool.execute_on_all(move |thread_id| {
-            let data = workerdata;
+            let data = worker_data;
             let objects = unsafe { &mut *data.0 };
             let ref uniform_grid_simple = unsafe { &(*data.1).0 };
-            let from = thread_id * (NB_CELL / NB_THREAD);
-            let to = ((thread_id * (NB_CELL / NB_THREAD)) + (NB_CELL / NB_THREAD))
-                .clamp(0, NB_CELL);
 
-            for x in from..to {
+            let width = nb_cell / NB_THREAD;
+            let width_rest = nb_cell % NB_THREAD;
+
+            let half_width  = width / 2;
+            let half_width_rest = width % 2;
+
+            let start_index = thread_id * width;
+            let end_index = start_index + half_width;
+
+            for x in start_index..end_index {
                 for y in 0..uniform_grid_simple.get_height() {
-                    let others = query_cell_and_neighbours(uniform_grid_simple, x, y);
-
-                    // TODO c'est faux ce que je fais ici mais ça marche quand même,
-                    //      mais surrement moins bien
-                    for o1 in &others {
-                        for o2 in &others {
-                            if o1 != o2 {
-                                let collision_axis = objects[*o1].position_current -
-                                    objects[*o2].position_current;
-                                let dist = collision_axis.distance(Vec2::new(0., 0.));
-                                if dist < objects[*o1].radius + objects[*o2].radius {
-                                    let n = collision_axis / dist;
-                                    let delta = objects[*o1].radius + objects[*o2].radius - dist;
-                                    objects[*o1].position_current += 0.5 * delta * n;
-                                    objects[*o2].position_current -= 0.5 * delta * n;
-                                }
-                            }
+                    let cell = uniform_grid_simple.get(x, y);
+                    for i in 0..cell.len() {
+                        for j in (i + 1)..cell.len() {
+                            Self::solve_object_to_object_collision(cell[i], cell[j], objects);
                         }
                     }
                 }
             }
         });
-
         self.thread_pool.wait_all_finish();
+
+        // second half
+        self.thread_pool.execute_on_all(move |thread_id| {
+            let data = worker_data;
+            let objects = unsafe { &mut *data.0 };
+            let ref uniform_grid_simple = unsafe { &(*data.1).0 };
+
+            let width = nb_cell / NB_THREAD;
+            let width_rest = nb_cell % NB_THREAD;
+
+            let half_width  = width / 2;
+            let half_width_rest = width % 2;
+
+            let start_index = thread_id * width + half_width;
+            let end_index = if thread_id == NB_THREAD - 1 {
+                start_index + half_width + half_width_rest + width_rest
+            } else {
+                start_index + half_width + half_width_rest
+            };
+
+            for x in start_index..end_index {
+                for y in 0..uniform_grid_simple.get_height() {
+                    let cell = uniform_grid_simple.get(x, y);
+                    for i in 0..cell.len() {
+                        for j in (i + 1)..cell.len() {
+                            Self::solve_object_to_object_collision(cell[i], cell[j], objects);
+                        }
+                    }
+                }
+            }
+        });
+        self.thread_pool.wait_all_finish();
+    }
+
+    fn solve_object_to_object_collision(object_a: usize, object_b: usize, objects: &mut SyncVec){
+        let collision_axis = objects[object_a].position_current -
+            objects[object_b].position_current;
+        let dist = collision_axis.distance(Vec2::new(0., 0.));
+        if dist < objects[object_a].radius + objects[object_b].radius {
+            //println!("collision between {object_a} and {object_b}");
+            let n = collision_axis / dist;
+            let delta = objects[object_a].radius + objects[object_b].radius - dist;
+            objects[object_a].position_current += 0.5 * delta * n;
+            objects[object_b].position_current -= 0.5 * delta * n;
+        }
     }
 
     pub fn set_object_velocity(&self, object: &mut VerletObject, velocity: Vec2) {

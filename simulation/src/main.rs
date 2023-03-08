@@ -25,7 +25,7 @@ mod sync_vec;
 const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
 const OBJECT_SPAWN_SPEED: f32 = 100.;
-const MAX_OBJECT: usize = 9200;
+const MAX_OBJECT: usize = 10000;
 const CIRCLE_RADIUS: f32 = 5.;
 
 pub fn main() -> Result<(), String> {
@@ -82,7 +82,7 @@ fn run_simulation(
     let mut nb_update: u32 = 0;
 
     let mut objects = SyncVec::new(Vec::with_capacity(MAX_OBJECT));
-    let mut solver = Solver::new(5., HEIGHT as f32, WIDTH as f32);
+    let mut solver = Solver::new(CIRCLE_RADIUS * 2., HEIGHT as f32, WIDTH as f32);
 
     // Load a font
     let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string())?;
@@ -112,9 +112,9 @@ fn run_simulation(
         let delta_time = current_time.duration_since(last_time);
         last_time = current_time;
 
-        if objects.len() >= MAX_OBJECT {
-            break 'running;
-        }
+        // if objects.len() >= MAX_OBJECT {
+        //     break 'running;
+        // }
 
         for event in event_pump.poll_iter() {
             match event {
