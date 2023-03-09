@@ -1,5 +1,5 @@
 use std::f32::consts::PI;
-use std::time::{Duration, Instant};
+use std::time::{Duration};
 use colors_transform::{Color, Hsl};
 
 use image::GenericImageView;
@@ -7,13 +7,12 @@ use sdl2::event::Event;
 use sdl2::EventPump;
 use sdl2::image::LoadSurface;
 use sdl2::keyboard::Keycode;
-use sdl2::pixels::Color as SdlColor;
+use sdl2::pixels::{Color as SdlColor, PixelFormatEnum};
 use sdl2::rect::{Rect};
 use sdl2::render::{Texture, TextureCreator, WindowCanvas};
 use sdl2::ttf::Font;
 use sdl2::video::WindowContext;
 use physic_engine::{Solver, Vec2, VerletObject};
-use crate::drawing_functions::{DrawBasicShapes};
 use crate::sync_vec::SyncVec;
 
 mod physic_engine;
@@ -68,8 +67,8 @@ fn run_simulation(
     event_pump: &mut EventPump,
     colors: Option<&[(u8, u8, u8)]>)
     -> Result<SyncVec, String> {
-    let mut last_time = Instant::now();
-    let mut nb_update: u32 = 0;
+    let mut loop_count: u32 = 0;
+    let mut stop_watch = stopwatch::Stopwatch::start_new();
 
     let mut objects = SyncVec::new(Vec::with_capacity(MAX_OBJECT));
     let mut solver = Solver::new(CIRCLE_RADIUS * 2., HEIGHT as f32, WIDTH as f32);
@@ -94,22 +93,18 @@ fn run_simulation(
 
         Ok(texture)
     }
-    let circle_surface = sdl2::surface::Surface::from_file("circle.png")?.convert_format(canvas.default_pixel_format())?;
+    let circle_surface = sdl2::surface::Surface::from_file("circle.png")?.convert_format(PixelFormatEnum::ARGB8888)?;
     let mut circle_texture = texture_creator.create_texture_from_surface(circle_surface).map_err(|e| e.to_string())?;
+    circle_texture.set_blend_mode(sdl2::render::BlendMode::Blend);
+    let mut color_gradient_counter = 0.;
 
-
-
-
-
-    let mut color_counter = 0.;
-    'running: loop {
-        nb_update += 1;
-        let current_time = Instant::now();
-        let delta_time = current_time.duration_since(last_time);
-        last_time = current_time;
+    'draw_loop: loop {
+        loop_count += 1;
+        let delta_time = stop_watch.elapsed();
+        stop_watch.restart();
 
         if objects.len() >= MAX_OBJECT {
-            break 'running;
+            break 'draw_loop;
         }
 
         for event in event_pump.poll_iter() {
@@ -118,7 +113,7 @@ fn run_simulation(
                 | Event::KeyDown {
                     keycode: Some(Keycode::Escape),
                     ..
-                } => break 'running,
+                } => break 'draw_loop,
                 _ => {}
             }
         }
@@ -126,23 +121,21 @@ fn run_simulation(
         canvas.set_draw_color(SdlColor::RGB(255, 255, 255));
         canvas.clear();
 
-        if nb_update > 1 && objects.len() < MAX_OBJECT {
+        if loop_count > 1 && objects.len() < MAX_OBJECT {
+            const CANNON_X: f32 = 400.;
+            const CANNON_Y: f32 = 100.;
 
-
-            const CANNON_X:f32 = 400.;
-            const CANNON_Y:f32 = 100.;
-
-            let mut build_cannon = |cannon_x: f32, cannon_y: f32, angle:f32, speed:f32| {
+            let mut build_cannon = |cannon_x: f32, cannon_y: f32, angle: f32, speed: f32| {
                 let color = if let Some(colors) = colors {
                     colors[objects.len()]
                 } else {
-                    let rgb = Hsl::from(color_counter, 100., 50.).to_rgb().as_tuple();
+                    let rgb = Hsl::from(color_gradient_counter, 100., 50.).to_rgb().as_tuple();
                     (rgb.0 as u8, rgb.1 as u8, rgb.2 as u8)
                 };
-                color_counter = if color_counter == 360. {
+                color_gradient_counter = if color_gradient_counter == 360. {
                     0.
                 } else {
-                    color_counter + 1.
+                    color_gradient_counter + 1.
                 };
 
                 let angle: f32 = PI * angle / 180.;
@@ -158,6 +151,7 @@ fn run_simulation(
                 objects.push(object);
             };
 
+            build_cannon(CANNON_X, CANNON_Y - 10., 0., OBJECT_SPAWN_SPEED);
             build_cannon(CANNON_X, CANNON_Y, 0., OBJECT_SPAWN_SPEED);
             build_cannon(CANNON_X, CANNON_Y + 10., 0., OBJECT_SPAWN_SPEED);
             build_cannon(CANNON_X, CANNON_Y + 20., 0., OBJECT_SPAWN_SPEED);
@@ -165,20 +159,19 @@ fn run_simulation(
             build_cannon(CANNON_X, CANNON_Y + 40., 0., OBJECT_SPAWN_SPEED);
             build_cannon(CANNON_X, CANNON_Y + 50., 0., OBJECT_SPAWN_SPEED);
 
-            nb_update = 0;
+            loop_count = 0;
         }
 
         solver.update(&mut objects);
-        canvas.set_draw_color(SdlColor::RGB(0, 0, 0));
-        canvas
-            .fill_circle((WIDTH / 2) as i32, (HEIGHT / 2) as i32, 500)
-            .unwrap();
+        circle_texture.set_color_mod(0, 0, 0);
+        canvas.copy(&circle_texture, None, Rect::new((WIDTH / 2) as i32 - 500, (HEIGHT / 2) as i32 - 500, 1000, 1000))?;
+
         for (_, object) in (&objects).iter().enumerate() {
             circle_texture.set_color_mod(object.color.0, object.color.1, object.color.2);
             canvas.copy(&circle_texture, None, Rect::new(object.position_current.x as i32 - CIRCLE_RADIUS as i32, object.position_current.y as i32 - CIRCLE_RADIUS as i32, (CIRCLE_RADIUS * 2.) as u32, (CIRCLE_RADIUS * 2.) as u32))?;
         }
         let text = format!("number of object: {}", objects.len());
-        let text2 = format!("frametime: {}ms", delta_time.as_millis());
+        let text2 = format!("frame time: {}ms", delta_time.as_millis());
         let text3 = format!("Physic time: {}ms", solver.timer.elapsed_ms());
         let text4 = format!("draw time: {}ms", delta_time.as_millis().saturating_sub(solver.timer.elapsed_ms() as u128));
         let texture = create_text_texture(&font, &texture_creator, text.as_str())?;
