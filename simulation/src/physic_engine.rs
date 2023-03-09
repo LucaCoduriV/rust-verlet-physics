@@ -81,8 +81,8 @@ impl Solver {
         for _ in 0..self.sub_steps {
             self.apply_gravity(objects);
             Self::apply_constraint(objects);
-            Self::solve_collision_brute_force(objects);
-            //self.solve_collision_multithreaded(objects);
+            //Self::solve_collision_brute_force(objects);
+            self.solve_collision_multithreaded(objects);
             Self::update_position(objects, sub_dt);
         }
         self.timer.stop();

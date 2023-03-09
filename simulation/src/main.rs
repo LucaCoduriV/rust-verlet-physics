@@ -1,4 +1,5 @@
 use std::f32::consts::PI;
+use std::ops::Deref;
 use std::time::{Duration, Instant};
 use colors_transform::{Color, Hsl};
 
@@ -23,7 +24,7 @@ mod sync_vec;
 const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
 const OBJECT_SPAWN_SPEED: f32 = 100.;
-const MAX_OBJECT: usize = 300;
+const MAX_OBJECT: usize = 9220;
 const CIRCLE_RADIUS: f32 = 5.;
 
 pub fn main() -> Result<(), String> {
@@ -45,7 +46,7 @@ pub fn main() -> Result<(), String> {
 
     // run first simulation to get all objects end position
     let objects = run_simulation(&mut canvas, &mut event_pump, None)?;
-
+    println!("objects: {:?}", objects.deref());
     // set objects color from image
     let img = image::open("./planete.webp").unwrap();
     let mut colors = vec![];
@@ -58,7 +59,12 @@ pub fn main() -> Result<(), String> {
     }
 
     // run second simulation with image colors
-    run_simulation(&mut canvas, &mut event_pump, Some(colors.as_slice()))?;
+    let objects = run_simulation(&mut canvas, &mut event_pump, Some(colors.as_slice()))?;
+
+    println!();
+    println!();
+    println!();
+    println!("objects: {:?}", objects.deref());
 
     std::thread::sleep(Duration::new(10, 0));
     Ok(())
@@ -103,9 +109,9 @@ fn run_simulation(
         let delta_time = current_time.duration_since(last_time);
         last_time = current_time;
 
-        // if objects.len() >= MAX_OBJECT {
-        //     break 'running;
-        // }
+        if objects.len() >= MAX_OBJECT {
+            break 'running;
+        }
 
         for event in event_pump.poll_iter() {
             match event {
@@ -124,22 +130,22 @@ fn run_simulation(
         if nb_update > 1 && objects.len() < MAX_OBJECT {
 
 
-            let color = if let Some(colors) = colors {
-                colors[objects.len()]
-            } else {
-                let rgb = Hsl::from(color_counter, 100., 50.).to_rgb().as_tuple();
-                (rgb.0 as u8, rgb.1 as u8, rgb.2 as u8)
-            };
-            color_counter = if color_counter == 360. {
-                0.
-            } else {
-                color_counter + 1.
-            };
-
             const CANNON_X:f32 = 400.;
             const CANNON_Y:f32 = 100.;
 
             let mut build_cannon = |cannon_x: f32, cannon_y: f32, angle:f32, speed:f32| {
+                let color = if let Some(colors) = colors {
+                    colors[objects.len()]
+                } else {
+                    let rgb = Hsl::from(color_counter, 100., 50.).to_rgb().as_tuple();
+                    (rgb.0 as u8, rgb.1 as u8, rgb.2 as u8)
+                };
+                color_counter = if color_counter == 360. {
+                    0.
+                } else {
+                    color_counter + 1.
+                };
+
                 let angle: f32 = PI * angle / 180.;
                 let mut object = VerletObject::new(
                     Vec2::new(cannon_x, cannon_y),
