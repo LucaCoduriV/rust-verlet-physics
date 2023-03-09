@@ -6,7 +6,7 @@ use crate::sync_vec::{SyncUniformGridSimple, SyncVec, WorkerData};
 
 pub type Vec2 = Vector2<f32>;
 
-const NB_THREAD: usize = 1;
+const NB_THREAD: usize = 8;
 
 #[derive(Debug)]
 pub struct VerletObject {
@@ -81,7 +81,8 @@ impl Solver {
         for _ in 0..self.sub_steps {
             self.apply_gravity(objects);
             Self::apply_constraint(objects);
-            self.solve_collision_multithreaded(objects);
+            Self::solve_collision_brute_force(objects);
+            //self.solve_collision_multithreaded(objects);
             Self::update_position(objects, sub_dt);
         }
         self.timer.stop();
@@ -109,6 +110,14 @@ impl Solver {
             if dist > (constraint_radius - object.radius) {
                 let n = v / dist;
                 object.position_current = constraint_center + n * (object.radius - constraint_radius);
+            }
+        }
+    }
+
+    fn solve_collision_brute_force(objects: &mut SyncVec) {
+        for i in 0..objects.len() {
+            for j in i + 1..objects.len() {
+                Self::solve_object_to_object_collision(i, j, objects);
             }
         }
     }

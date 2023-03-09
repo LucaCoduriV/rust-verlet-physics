@@ -3,8 +3,6 @@ use std::time::{Duration, Instant};
 use colors_transform::{Color, Hsl};
 
 use image::GenericImageView;
-use rand::{Rng, SeedableRng};
-use rand::rngs::StdRng;
 use sdl2::event::Event;
 use sdl2::EventPump;
 use sdl2::gfx::primitives::DrawRenderer;
@@ -25,7 +23,7 @@ mod sync_vec;
 const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
 const OBJECT_SPAWN_SPEED: f32 = 100.;
-const MAX_OBJECT: usize = 9200;
+const MAX_OBJECT: usize = 300;
 const CIRCLE_RADIUS: f32 = 5.;
 
 pub fn main() -> Result<(), String> {
@@ -44,13 +42,6 @@ pub fn main() -> Result<(), String> {
     canvas.clear();
     canvas.present();
     let mut event_pump = sdl_context.event_pump()?;
-
-    // create random colors
-    let mut rng = StdRng::seed_from_u64(42);
-    let mut colors: [(u8, u8, u8); MAX_OBJECT] = [(0, 0, 0); MAX_OBJECT];
-    for i in 0..colors.len() {
-        colors[i] = (rng.gen(), rng.gen(), rng.gen());
-    }
 
     // run first simulation to get all objects end position
     let objects = run_simulation(&mut canvas, &mut event_pump, None)?;
@@ -112,9 +103,9 @@ fn run_simulation(
         let delta_time = current_time.duration_since(last_time);
         last_time = current_time;
 
-        if objects.len() >= MAX_OBJECT {
-            break 'running;
-        }
+        // if objects.len() >= MAX_OBJECT {
+        //     break 'running;
+        // }
 
         for event in event_pump.poll_iter() {
             match event {
@@ -131,7 +122,7 @@ fn run_simulation(
         canvas.clear();
 
         if nb_update > 1 && objects.len() < MAX_OBJECT {
-            let angle: f32 = PI * 0.1;
+
 
             let color = if let Some(colors) = colors {
                 colors[objects.len()]
@@ -148,7 +139,8 @@ fn run_simulation(
             const CANNON_X:f32 = 400.;
             const CANNON_Y:f32 = 100.;
 
-            let mut build_cannon = |cannon_x: f32, cannon_y: f32| {
+            let mut build_cannon = |cannon_x: f32, cannon_y: f32, angle:f32, speed:f32| {
+                let angle: f32 = PI * angle / 180.;
                 let mut object = VerletObject::new(
                     Vec2::new(cannon_x, cannon_y),
                     CIRCLE_RADIUS,
@@ -156,15 +148,15 @@ fn run_simulation(
                 );
                 solver.set_object_velocity(
                     &mut object,
-                    OBJECT_SPAWN_SPEED * Vec2::new(angle.cos(), angle.sin()),
+                    speed * Vec2::new(angle.cos(), angle.sin()),
                 );
                 objects.push(object);
             };
 
-            build_cannon(CANNON_X, CANNON_Y);
-            build_cannon(CANNON_X, CANNON_Y + 10.);
-            build_cannon(CANNON_X, CANNON_Y + 20.);
-            build_cannon(CANNON_X, CANNON_Y + 30.);
+            build_cannon(CANNON_X, CANNON_Y, 0., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y - 15., 180., OBJECT_SPAWN_SPEED);
+            //build_cannon(CANNON_X, CANNON_Y + 20., OBJECT_SPAWN_SPEED);
+            //build_cannon(CANNON_X, CANNON_Y + 30., OBJECT_SPAWN_SPEED);
 
             nb_update = 0;
         }
