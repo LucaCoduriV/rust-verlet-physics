@@ -175,7 +175,7 @@ fn run_simulation(
             .unwrap();
         for (_, object) in (&objects).iter().enumerate() {
             circle_texture.set_color_mod(object.color.0, object.color.1, object.color.2);
-            canvas.copy(&circle_texture, None, Rect::new(object.position_current.x as i32 - 5, object.position_current.y as i32 - 5, 10, 10))?;
+            canvas.copy(&circle_texture, None, Rect::new(object.position_current.x as i32 - CIRCLE_RADIUS as i32, object.position_current.y as i32 - CIRCLE_RADIUS as i32, (CIRCLE_RADIUS * 2.) as u32, (CIRCLE_RADIUS * 2.) as u32))?;
         }
         let text = format!("number of object: {}", objects.len());
         let text2 = format!("frametime: {}ms", delta_time.as_millis());
@@ -187,8 +187,8 @@ fn run_simulation(
         let texture4 = create_text_texture(&font, &texture_creator, text4.as_str())?;
         canvas.copy(&texture, None, Some(Rect::new(0, 0, (text.len() * 7) as u32, 30)))?;
         canvas.copy(&texture2, None, Some(Rect::new(0, 25, (text2.len() * 7) as u32, 30)))?;
-        canvas.copy(&texture3, None, Some(Rect::new(0, 50, (text2.len() * 7) as u32, 30)))?;
-        canvas.copy(&texture4, None, Some(Rect::new(0, 75, (text2.len() * 7) as u32, 30)))?;
+        canvas.copy(&texture3, None, Some(Rect::new(0, 50, (text3.len() * 7) as u32, 30)))?;
+        canvas.copy(&texture4, None, Some(Rect::new(0, 75, (text4.len() * 7) as u32, 30)))?;
         canvas.present();
     }
 
