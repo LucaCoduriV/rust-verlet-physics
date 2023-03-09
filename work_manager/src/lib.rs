@@ -1,0 +1,117 @@
+use std::sync::{Arc, mpsc};
+use std::sync::mpsc::{Receiver, Sender};
+use std::thread;
+use std::thread::JoinHandle;
+
+pub type JobId = Box<dyn FnOnce(usize) + Send + 'static>;
+
+pub struct WorkerPool
+{
+    thread_pool: Vec<Worker>,
+    receiver: Receiver<usize>,
+}
+
+impl WorkerPool {
+    pub fn new(number_worker: usize) -> Self {
+        let (sender, receiver) = mpsc::channel();
+        let mut thread_pool = Vec::with_capacity(number_worker);
+        for i in 0..number_worker {
+            let worker = Worker::new(i, sender.clone());
+            thread_pool.push(worker);
+        }
+
+
+        Self {
+            thread_pool,
+            receiver,
+        }
+    }
+
+    pub fn execute_on_all<F>(&self, work: F) where
+        F: Fn(usize) + Send + Sync + 'static
+    {
+        let work = Arc::new(work);
+        for worker in self.thread_pool.iter() {
+            let f = work.clone();
+            worker.execute(move |id| {
+                f(id);
+            });
+        }
+    }
+
+    pub fn wait_all_finish(&self) {
+        for _ in 0..self.thread_pool.len() {
+            let _ = self.receiver.recv().unwrap();
+        }
+    }
+}
+
+impl Drop for WorkerPool {
+    fn drop(&mut self) {
+        for _ in 0..self.thread_pool.len() {
+            let worker = self.thread_pool.remove(self.thread_pool.len() - 1);
+            worker.sender.send(WorkerMessage::Terminate).unwrap();
+            worker.thread_handle.join().unwrap();
+        }
+    }
+}
+
+enum WorkerMessage {
+    NewJob(JobId),
+    Terminate,
+}
+
+struct Worker {
+    thread_handle: JoinHandle<()>,
+    sender: Sender<WorkerMessage>,
+
+}
+
+impl Worker {
+    fn new(worker_id: usize, state_sender: Sender<usize>) -> Self {
+        let (job_sender, receiver) = mpsc::channel();
+        let handle = thread::spawn(move || Self::job_loop(receiver, worker_id, state_sender));
+        Self {
+            thread_handle: handle,
+            sender: job_sender,
+        }
+    }
+
+    fn job_loop(recv: Receiver<WorkerMessage>, worker_id: usize, sender: Sender<usize>) {
+        loop {
+            let message = recv.recv().unwrap();
+            match message {
+                WorkerMessage::NewJob(mut job) => {
+                    job(worker_id);
+                }
+                WorkerMessage::Terminate => {
+                    break;
+                }
+            }
+            sender.send(worker_id).unwrap();
+        }
+    }
+
+    fn execute<F>(&self, job: F) where
+        F: FnOnce(usize) + Send + 'static
+    {
+        self.sender.send(WorkerMessage::NewJob(Box::new(job))).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::WorkerPool;
+
+    #[test]
+    fn execute_println_4_thread() {
+        const NB_THREAD: usize = 4;
+        let wm = WorkerPool::new(NB_THREAD);
+        let coucou = String::from("coucou");
+        wm.execute_on_all(move |id| {
+            println!("Thread: {}, {}", id, coucou);
+        });
+
+        wm.wait_all_finish();
+    }
+}

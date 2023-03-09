@@ -50,8 +50,8 @@ pub fn pixelize_circle(center: Point, radius: i32) -> Vec<Point>
     let mut points: Vec<Point>;
 
     // 35 / 49 is a slightly biased approximation of 1/sqrt(2)
-    let arrSize: usize = round_up_to_multiple_of_eight(radius * 8 * 35 / 49) as usize;
-    points = Vec::with_capacity(arrSize);
+    let arr_size: usize = round_up_to_multiple_of_eight(radius * 8 * 35 / 49) as usize;
+    points = Vec::with_capacity(arr_size);
 
     let diameter = radius * 2;
 
