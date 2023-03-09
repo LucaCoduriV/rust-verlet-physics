@@ -1,12 +1,11 @@
 use std::f32::consts::PI;
-use std::ops::Deref;
 use std::time::{Duration, Instant};
 use colors_transform::{Color, Hsl};
 
 use image::GenericImageView;
 use sdl2::event::Event;
 use sdl2::EventPump;
-use sdl2::gfx::primitives::DrawRenderer;
+use sdl2::image::LoadSurface;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color as SdlColor;
 use sdl2::rect::{Rect};
@@ -46,7 +45,6 @@ pub fn main() -> Result<(), String> {
 
     // run first simulation to get all objects end position
     let objects = run_simulation(&mut canvas, &mut event_pump, None)?;
-    println!("objects: {:?}", objects.deref());
     // set objects color from image
     let img = image::open("./planete.webp").unwrap();
     let mut colors = vec![];
@@ -59,12 +57,7 @@ pub fn main() -> Result<(), String> {
     }
 
     // run second simulation with image colors
-    let objects = run_simulation(&mut canvas, &mut event_pump, Some(colors.as_slice()))?;
-
-    println!();
-    println!();
-    println!();
-    println!("objects: {:?}", objects.deref());
+    run_simulation(&mut canvas, &mut event_pump, Some(colors.as_slice()))?;
 
     std::thread::sleep(Duration::new(10, 0));
     Ok(())
@@ -86,7 +79,6 @@ fn run_simulation(
     let mut font = ttf_context.load_font("./OpenSans-Regular.ttf", 128)?;
     font.set_style(sdl2::ttf::FontStyle::BOLD);
     let texture_creator = canvas.texture_creator();
-
     fn create_text_texture<'a>(font: &Font, texture_creator: &'a TextureCreator<WindowContext>,
                                text: &'a str) -> Result<Texture<'a>, String> {
         // render a surface, and convert it to a texture bound to the canvas
@@ -102,6 +94,13 @@ fn run_simulation(
 
         Ok(texture)
     }
+    let circle_surface = sdl2::surface::Surface::from_file("circle.png")?.convert_format(canvas.default_pixel_format())?;
+    let mut circle_texture = texture_creator.create_texture_from_surface(circle_surface).map_err(|e| e.to_string())?;
+
+
+
+
+
     let mut color_counter = 0.;
     'running: loop {
         nb_update += 1;
@@ -160,9 +159,11 @@ fn run_simulation(
             };
 
             build_cannon(CANNON_X, CANNON_Y, 0., OBJECT_SPAWN_SPEED);
-            build_cannon(CANNON_X, CANNON_Y - 15., 180., OBJECT_SPAWN_SPEED);
-            //build_cannon(CANNON_X, CANNON_Y + 20., OBJECT_SPAWN_SPEED);
-            //build_cannon(CANNON_X, CANNON_Y + 30., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y + 10., 0., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y + 20., 0., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y + 30., 0., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y + 40., 0., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y + 50., 0., OBJECT_SPAWN_SPEED);
 
             nb_update = 0;
         }
@@ -173,9 +174,8 @@ fn run_simulation(
             .fill_circle((WIDTH / 2) as i32, (HEIGHT / 2) as i32, 500)
             .unwrap();
         for (_, object) in (&objects).iter().enumerate() {
-            canvas.filled_circle(object.position_current.x as i16,
-                                 object.position_current.y as i16,
-                                 object.radius as i16, SdlColor::RGB(object.color.0, object.color.1, object.color.2))?;
+            circle_texture.set_color_mod(object.color.0, object.color.1, object.color.2);
+            canvas.copy(&circle_texture, None, Rect::new(object.position_current.x as i32 - 5, object.position_current.y as i32 - 5, 10, 10))?;
         }
         let text = format!("number of object: {}", objects.len());
         let text2 = format!("frametime: {}ms", delta_time.as_millis());

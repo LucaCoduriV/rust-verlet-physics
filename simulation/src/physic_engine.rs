@@ -114,14 +114,6 @@ impl Solver {
         }
     }
 
-    fn solve_collision_brute_force(objects: &mut SyncVec) {
-        for i in 0..objects.len() {
-            for j in i + 1..objects.len() {
-                Self::solve_object_to_object_collision(i, j, objects);
-            }
-        }
-    }
-
     fn solve_collision_multithreaded(&mut self, objects: &mut SyncVec) {
         let nb_cell: usize = (self.world_width / self.cell_size) as usize;
 
@@ -143,10 +135,8 @@ impl Solver {
             let ref uniform_grid_simple = unsafe { &(*data.1).0 };
 
             let width = nb_cell / NB_THREAD;
-            let width_rest = nb_cell % NB_THREAD;
 
             let half_width = width / 2;
-            let half_width_rest = width % 2;
 
             let start_index = thread_id * width;
             let end_index = start_index + half_width;

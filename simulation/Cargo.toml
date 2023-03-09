@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 cgmath = "0.18.0"
 rand = "0.8.5"
-sdl2 = {version = "0.35.2", features = ["ttf", "gfx"]}
+sdl2 = {version = "0.35.2", features = ["ttf", "gfx", "image"]}
 image = "0.24.5"
 quadtree = { path = "../quadtree" }
 uniform_grid = { path = "../uniform_grid" }
