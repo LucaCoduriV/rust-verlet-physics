@@ -21,8 +21,8 @@ mod sync_vec;
 
 const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
-const OBJECT_SPAWN_SPEED: f32 = 100.;
-const MAX_OBJECT: usize = 9220;
+const OBJECT_SPAWN_SPEED: f32 = 500.;
+const MAX_OBJECT: usize = 10;
 const CIRCLE_RADIUS: f32 = 5.;
 
 pub fn main() -> Result<(), String> {
@@ -103,9 +103,9 @@ fn run_simulation(
         let delta_time = stop_watch.elapsed();
         stop_watch.restart();
 
-        if objects.len() >= MAX_OBJECT {
-            break 'draw_loop;
-        }
+        // if objects.len() >= MAX_OBJECT {
+        //     break 'draw_loop;
+        // }
 
         for event in event_pump.poll_iter() {
             match event {
@@ -152,12 +152,12 @@ fn run_simulation(
             };
 
             build_cannon(CANNON_X, CANNON_Y - 10., 0., OBJECT_SPAWN_SPEED);
-            build_cannon(CANNON_X, CANNON_Y, 0., OBJECT_SPAWN_SPEED);
-            build_cannon(CANNON_X, CANNON_Y + 10., 0., OBJECT_SPAWN_SPEED);
-            build_cannon(CANNON_X, CANNON_Y + 20., 0., OBJECT_SPAWN_SPEED);
-            build_cannon(CANNON_X, CANNON_Y + 30., 0., OBJECT_SPAWN_SPEED);
-            build_cannon(CANNON_X, CANNON_Y + 40., 0., OBJECT_SPAWN_SPEED);
-            build_cannon(CANNON_X, CANNON_Y + 50., 0., OBJECT_SPAWN_SPEED);
+            // build_cannon(CANNON_X, CANNON_Y, 0., OBJECT_SPAWN_SPEED);
+            // build_cannon(CANNON_X, CANNON_Y + 10., 0., OBJECT_SPAWN_SPEED);
+            // build_cannon(CANNON_X, CANNON_Y + 20., 0., OBJECT_SPAWN_SPEED);
+            // build_cannon(CANNON_X, CANNON_Y + 30., 0., OBJECT_SPAWN_SPEED);
+            // build_cannon(CANNON_X, CANNON_Y + 40., 0., OBJECT_SPAWN_SPEED);
+            // build_cannon(CANNON_X, CANNON_Y + 50., 0., OBJECT_SPAWN_SPEED);
 
             loop_count = 0;
         }

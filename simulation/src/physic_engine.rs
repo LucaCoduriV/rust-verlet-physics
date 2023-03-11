@@ -1,4 +1,5 @@
-use cgmath::{MetricSpace, Vector2};
+use cgmath::{InnerSpace, MetricSpace, Vector2};
+use cgmath::num_traits::pow;
 use stopwatch::Stopwatch;
 use uniform_grid_simple::{clear_uniform_grid_simple};
 use work_manager::WorkerPool;
@@ -15,6 +16,8 @@ pub struct VerletObject {
     pub acceleration: Vec2,
     pub color: (u8, u8, u8),
     pub radius: f32,
+    pub inertia: f32,
+    pub move_acc: f32,
 }
 
 impl VerletObject {
@@ -25,13 +28,24 @@ impl VerletObject {
             acceleration: Vec2::new(0., 0.),
             color,
             radius,
+            inertia: 1.,
+            move_acc: 0.,
         }
     }
 
     pub fn update_position(&mut self, dt: f32) {
         let velocity = self.position_current - self.position_old;
+
+        self.inertia = 1. + self.move_acc / (velocity.magnitude() + 1.);
+        self.move_acc *= 0.5;
+
+        self.acceleration -= velocity * 35.;
+
+        let anti_pressure_factor:f32 = pow(1. / self.inertia, 2);
+
         self.position_old = self.position_current;
-        self.position_current = self.position_current + velocity + self.acceleration * dt * dt;
+        self.position_current += velocity + self.acceleration * anti_pressure_factor
+            * dt * dt;
 
         self.acceleration = Vec2::new(0., 0.);
     }
@@ -61,8 +75,8 @@ pub struct Solver {
 impl Solver {
     pub fn new(cell_size: f32, world_height: f32, world_width: f32) -> Self {
         Self {
-            gravity: Vec2::new(0., 1000.),
-            sub_steps: 8,
+            gravity: Vec2::new(0., 980.),
+            sub_steps: 1,
             frame_dt: 1. / 60.,
             uniform_grid_simple: SyncUniformGridSimple(uniform_grid_simple::new(cell_size,
                                                                                 world_width,
@@ -77,14 +91,22 @@ impl Solver {
 
     pub fn update(&mut self, objects: &mut SyncVec) {
         self.timer.restart();
-        let sub_dt = self.frame_dt / self.sub_steps as f32;
-        for _ in 0..self.sub_steps {
-            self.apply_gravity(objects);
-            Self::apply_constraint(objects);
-            //Self::solve_collision_brute_force(objects);
-            self.solve_collision_multithreaded(objects);
-            Self::update_position(objects, sub_dt);
-        }
+        self.apply_gravity(objects);
+
+        Self::apply_constraint(objects);
+        self.solve_collision_multithreaded(objects);
+        Self::apply_constraint(objects);
+
+        Self::update_position(objects, self.frame_dt);
+
+        // let sub_dt = self.frame_dt / self.sub_steps as f32;
+        // for _ in 0..self.sub_steps {
+        //
+        //
+        //     //Self::solve_collision_brute_force(objects);
+        //
+        //     Self::update_position(objects, sub_dt);
+        // }
         self.timer.stop();
     }
 
