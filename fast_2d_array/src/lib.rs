@@ -1,6 +1,5 @@
 use std::fmt::{Debug, Display, Formatter};
 
-#[derive(Debug)]
 pub struct Array2D<T> {
     height: usize,
     width: usize,
@@ -76,7 +75,7 @@ impl<T> Array2D<T> {
     }
 }
 
-impl<T: Debug> Display for Array2D<T> {
+impl<T: Debug> Debug for Array2D<T>{
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for y in 0..self.height {
             for x in 0..self.width {

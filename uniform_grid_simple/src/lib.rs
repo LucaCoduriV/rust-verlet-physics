@@ -4,8 +4,8 @@ type Point = (f32, f32);
 pub type UniformGridSimple = Array2D<Vec<usize>>;
 
 pub fn new(cell_size: f32, world_width: f32, world_height: f32) -> UniformGridSimple {
-    let width = (world_width / cell_size) as usize;
-    let height = (world_height / cell_size) as usize;
+    let width = (world_width / cell_size).ceil() as usize;
+    let height = (world_height / cell_size).ceil() as usize;
     Array2D::new(height, width)
 }
 
@@ -89,7 +89,7 @@ mod test {
         insert(&mut grid, (21., 21.), 4, CELL_SIZE);
 
         println!();
-        println!("{}", grid);
+        println!("{:?}", grid);
 
         assert!(grid.get(0, 0).contains(&0)
             && grid.get(0, 0).contains(&1)
