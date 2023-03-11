@@ -21,9 +21,9 @@ mod sync_vec;
 
 const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 1000;
-const OBJECT_SPAWN_SPEED: f32 = 100.;
-const MAX_OBJECT: usize = 9220;
-const CIRCLE_RADIUS: f32 = 5.;
+const OBJECT_SPAWN_SPEED: f32 = 500.;
+const MAX_OBJECT: usize = 38_000;
+const CIRCLE_RADIUS: f32 = 3.;
 
 pub fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
@@ -49,8 +49,8 @@ pub fn main() -> Result<(), String> {
     let mut colors = vec![];
     for object in objects.iter() {
         let pixel = img.get_pixel(
-            object.position_current.x as u32,
-            object.position_current.y as u32,
+            (object.position_current.x as u32).clamp(0, WIDTH - 1),
+            (object.position_current.y as u32).clamp(0, HEIGHT - 1),
         );
         colors.push((pixel.0[0], pixel.0[1], pixel.0[2]));
     }
@@ -83,7 +83,7 @@ fn run_simulation(
         // render a surface, and convert it to a texture bound to the canvas
         let surface = font
             .render(text)
-            .blended(SdlColor::RGB(0, 0, 0))
+            .blended(SdlColor::RGB(255, 255, 255))
             .map_err(|e| e.to_string())?;
 
         let texture = texture_creator
@@ -118,11 +118,11 @@ fn run_simulation(
             }
         }
 
-        canvas.set_draw_color(SdlColor::RGB(255, 255, 255));
+        canvas.set_draw_color(SdlColor::RGB(0, 0, 0));
         canvas.clear();
 
         if loop_count > 1 && objects.len() < MAX_OBJECT {
-            const CANNON_X: f32 = 400.;
+            const CANNON_X: f32 = 10.;
             const CANNON_Y: f32 = 100.;
 
             let mut build_cannon = |cannon_x: f32, cannon_y: f32, angle: f32, speed: f32| {
@@ -132,10 +132,10 @@ fn run_simulation(
                     let rgb = Hsl::from(color_gradient_counter, 100., 50.).to_rgb().as_tuple();
                     (rgb.0 as u8, rgb.1 as u8, rgb.2 as u8)
                 };
-                color_gradient_counter = if color_gradient_counter == 360. {
+                color_gradient_counter = if color_gradient_counter >= 360. {
                     0.
                 } else {
-                    color_gradient_counter + 1.
+                    color_gradient_counter + 0.01
                 };
 
                 let angle: f32 = PI * angle / 180.;
@@ -152,19 +152,28 @@ fn run_simulation(
             };
 
             build_cannon(CANNON_X, CANNON_Y - 10., 0., OBJECT_SPAWN_SPEED);
-            build_cannon(CANNON_X, CANNON_Y, 0., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y + 0.0, 0., OBJECT_SPAWN_SPEED);
             build_cannon(CANNON_X, CANNON_Y + 10., 0., OBJECT_SPAWN_SPEED);
             build_cannon(CANNON_X, CANNON_Y + 20., 0., OBJECT_SPAWN_SPEED);
             build_cannon(CANNON_X, CANNON_Y + 30., 0., OBJECT_SPAWN_SPEED);
             build_cannon(CANNON_X, CANNON_Y + 40., 0., OBJECT_SPAWN_SPEED);
             build_cannon(CANNON_X, CANNON_Y + 50., 0., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y + 60., 0., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y + 70., 0., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y + 80., 0., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y + 90., 0., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y + 100., 0., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y + 110., 0., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y + 120., 0., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y + 130., 0., OBJECT_SPAWN_SPEED);
+            build_cannon(CANNON_X, CANNON_Y + 140., 0., OBJECT_SPAWN_SPEED);
 
             loop_count = 0;
         }
 
         solver.update(&mut objects);
-        circle_texture.set_color_mod(0, 0, 0);
-        canvas.copy(&circle_texture, None, Rect::new((WIDTH / 2) as i32 - 500, (HEIGHT / 2) as i32 - 500, 1000, 1000))?;
+        // circle_texture.set_color_mod(0, 0, 0);
+        // canvas.copy(&circle_texture, None, Rect::new((WIDTH / 2) as i32 - 500, (HEIGHT / 2) as i32 - 500, 1000, 1000))?;
 
         for (_, object) in (&objects).iter().enumerate() {
             circle_texture.set_color_mod(object.color.0, object.color.1, object.color.2);
