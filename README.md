@@ -11,6 +11,5 @@ I have to do while checking collisions.
 I can then generate an image during the simulation using the deterministic 
 characteristic of this algorithm.
 
-![](./rust.png)
-![](./rust2.png)
+![verlet-physics-demo.gif](verlet-physics-demo.gif)
 ![](./planete.webp)
